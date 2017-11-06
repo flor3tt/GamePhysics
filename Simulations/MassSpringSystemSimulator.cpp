@@ -56,10 +56,9 @@ void MassSpringSystemSimulator::drawFrame(ID3D11DeviceContext * pd3dImmediateCon
 {
 	switch (m_iTestCase)
 	{
-	case 0: break;
+	case 0: drawSimpleSetup(); break;
 	case 1: drawSimpleSetup(); break;
-	case 2: drawSimpleSetup(); break;
-	case 3: drawComplexSetup(); break;
+	case 2: drawComplexSetup(); break;
 	}
 }
 
@@ -86,7 +85,7 @@ void MassSpringSystemSimulator::notifyCaseChanged(int testCase)
 		addSpring(0, 1, 1);
 		m_iIntegrator = 0;
 
-		simulateTimestep(0.1f);
+		simulateTimestepEuler(0.1f);
 
 		//Print Results
 		cout << m_masspoints[0]->Force << endl;
@@ -104,7 +103,7 @@ void MassSpringSystemSimulator::notifyCaseChanged(int testCase)
 		addSpring(0, 1, 1);
 		m_iIntegrator = 1;
 
-		simulateTimestep(0.1f);
+		simulateTimestepEuler(0.1f);
 
 		//Print Results
 		cout << m_masspoints[0]->Force << endl;
@@ -116,12 +115,21 @@ void MassSpringSystemSimulator::notifyCaseChanged(int testCase)
 
 		break;
 	case 1:
-		cout << "Simple Euler Simulation !\n";
+		cout << "Simple Scene Setup Simulation !\n";
+
+		m_fGravity = 0;
+		m_fMass = 10;
+		m_fStiffness = 40;
+		m_fDamping = 0;
+		m_iIntegrator = 0;
+
+		//EULER
+		addMassPoint(Vec3(0, 0, 0), Vec3(-1, 0, 0), false);
+		addMassPoint(Vec3(0, 2, 0), Vec3(1, 0, 0), false);
+		addSpring(0, 1, 1);
+
 		break;
 	case 2:
-		cout << "Simple Midpoint Simulation !\n";
-		break;
-	case 3:
 		cout << "Complex Scene Setup Simulation !\n";
 	default:
 		cout << "Empty Test!\n";
@@ -156,60 +164,78 @@ void MassSpringSystemSimulator::externalForcesCalculations(float timeElapsed)
 
 void MassSpringSystemSimulator::simulateTimestep(float timeStep)
 {
+	if (m_iTestCase == 0)
+		return;
 	//Different Simulation dependent on Integrator
 	switch (m_iIntegrator)
 	{
 	case EULER:
 		//Simulate with Euler Integration
-		for each(MassPoint* mp in m_masspoints)
-		{
-			//Reset Force
-			mp->Force = 0;
-		}
-
-		//Calculate Spring Forces
-		for each(Spring* sp in m_springs)
-		{
-			Vec3 distance = m_masspoints[sp->masspoint1]->Position - m_masspoints[sp->masspoint2]->Position;
-			
-			float length = sqrt(pow(distance.x, 2) + pow(distance.y, 2) + pow(distance.z, 2));
-			Vec3 force = -1 * m_fStiffness * (length - sp->initialLength) * distance / length;
-			force -= m_fDamping * (m_masspoints[sp->masspoint1]->Velocity + m_masspoints[sp->masspoint2]->Velocity);
-
-			m_masspoints[sp->masspoint1]->Force += force;
-			m_masspoints[sp->masspoint2]->Force -= force;
-		}
-
-		//Caculate new Positions
-		for each(MassPoint* mp in m_masspoints)
-		{
-			//Integrate Position
-			mp->Position += mp->Velocity * timeStep;
-
-			//Add Gravity
-			mp->Force += m_fMass * m_fGravity;
-		}
-
-		externalForcesCalculations(timeStep);
-		applyExternalForce(m_externalForce);
-
-		//Caculate new Velocities
-		for each(MassPoint* mp in m_masspoints)
-		{
-			mp->Velocity += timeStep * (mp->Force / m_fMass);
-		}
-
+		simulateTimestepEuler(timeStep);
 		break;
 	case LEAPFROG:
 		//Simulate with Leap-Frog Integration
+		simulateTimestepLeapfrog(timeStep);
 		break;
 	case MIDPOINT:
 		//Simulate with Midpoint Integration
+		simulateTimestepMidpoint(timeStep);
 		break;
 	default:
 		cout << "Invalid Integrator selected!\n";
 		break;
 	}
+}
+
+void MassSpringSystemSimulator::simulateTimestepEuler(float timeStep)
+{
+	for each(MassPoint* mp in m_masspoints)
+	{
+		//Reset Force
+		mp->Force = 0;
+	}
+
+	//Calculate Spring Forces
+	for each(Spring* sp in m_springs)
+	{
+		Vec3 distance = m_masspoints[sp->masspoint1]->Position - m_masspoints[sp->masspoint2]->Position;
+
+		float length = sqrt(pow(distance.x, 2) + pow(distance.y, 2) + pow(distance.z, 2));
+		Vec3 force = -1 * m_fStiffness * (length - sp->initialLength) * distance / length;
+		force -= m_fDamping * (m_masspoints[sp->masspoint1]->Velocity + m_masspoints[sp->masspoint2]->Velocity);
+
+		m_masspoints[sp->masspoint1]->Force += force;
+		m_masspoints[sp->masspoint2]->Force -= force;
+	}
+
+	//Caculate new Positions
+	for each(MassPoint* mp in m_masspoints)
+	{
+		//Integrate Position
+		mp->Position += mp->Velocity * timeStep;
+
+		//Add Gravity
+		mp->Force += m_fMass * m_fGravity;
+	}
+
+	externalForcesCalculations(timeStep);
+	applyExternalForce(m_externalForce);
+
+	//Caculate new Velocities
+	for each(MassPoint* mp in m_masspoints)
+	{
+		mp->Velocity += timeStep * (mp->Force / m_fMass);
+	}
+}
+
+void MassSpringSystemSimulator::simulateTimestepMidpoint(float timeStep)
+{
+
+}
+
+void MassSpringSystemSimulator::simulateTimestepLeapfrog(float timeStep)
+{
+
 }
 
 void MassSpringSystemSimulator::onClick(int x, int y)
@@ -295,10 +321,60 @@ void MassSpringSystemSimulator::applyExternalForce(Vec3 force)
 
 void MassSpringSystemSimulator::drawSimpleSetup()
 {
-	//DUC->DrawTriangleUsingShaders();
+	Vec3 mpScale = Vec3(0.01f, 0.01f, 0.01f);
+	Vec3 springColor = Vec3(0, 1, 0);
+
+	//Setup Lighting
+	DUC->setUpLighting(Vec3(), 0.4*Vec3(1, 1, 1), 100, 0.6*Vec3(0.97, 0.86, 1));
+
+	//Draw MassPoints
+	for each(MassPoint* mp in m_masspoints)
+	{
+		DUC->drawSphere(mp->Position, mpScale);
+	}
+
+	//Draw Springs
+	DUC->beginLine();
+	for each(Spring* sp in m_springs)
+	{
+		DUC->drawLine(m_masspoints[sp->masspoint1]->Position, springColor, m_masspoints[sp->masspoint2]->Position, springColor);
+	}
+	DUC->endLine();
 }
 
 void MassSpringSystemSimulator::drawComplexSetup()
 {
-	//DUC->DrawTriangleUsingShaders();
+	Vec3 mpScale = Vec3(m_fMass * 0.001f);
+
+	//Setup Lighting
+	DUC->setUpLighting(Vec3(), 0.4*Vec3(1, 1, 1), 100, 0.6*Vec3(0.97, 0.86, 1));
+
+	//Draw MassPoints
+	for each(MassPoint* mp in m_masspoints)
+	{
+		DUC->drawSphere(mp->Position, mpScale);
+	}
+
+	//Draw Springs
+	DUC->beginLine();
+	for each(Spring* sp in m_springs)
+	{
+		//Make Spring Color dependent on current spring Length
+		Vec3 distance = m_masspoints[sp->masspoint1]->Position - m_masspoints[sp->masspoint2]->Position;
+		float length = sqrt(pow(distance.x, 2) + pow(distance.y, 2) + pow(distance.z, 2));
+
+		float greenAmount;
+		if (length <= sp->initialLength)
+		{
+			greenAmount = length / sp->initialLength;
+		}
+		else
+		{
+			greenAmount = sp->initialLength / length;
+		}
+		Vec3 springColor = Vec3(1 - greenAmount, greenAmount, 0);
+
+		DUC->drawLine(m_masspoints[sp->masspoint1]->Position, springColor, m_masspoints[sp->masspoint2]->Position, springColor);
+	}
+	DUC->endLine();
 }

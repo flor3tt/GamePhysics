@@ -54,6 +54,10 @@ public:
 	Vec3 getVelocityOfMassPoint(int index);
 	void applyExternalForce(Vec3 force);
 
+	void simulateTimestepEuler(float timeElapsed);
+	void simulateTimestepMidpoint(float timeElapsed);
+	void simulateTimestepLeapfrog(float timeElapsed);
+
 	//Specific Case Functions
 	void drawSimpleSetup();
 	void drawComplexSetup();
