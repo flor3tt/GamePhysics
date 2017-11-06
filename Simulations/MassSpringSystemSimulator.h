@@ -69,10 +69,11 @@ private:
 	float m_fStiffness;
 	float m_fDamping;
 	int m_iIntegrator;
+	float m_fGravity;
 
 	//MassPoint and Spring Management
-	vector<MassPoint> masspoints;
-	vector<Spring> springs;
+	vector<MassPoint*> m_masspoints;
+	vector<Spring*> m_springs;
 
 	// UI Attributes
 	Vec3 m_externalForce;
