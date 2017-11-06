@@ -36,6 +36,10 @@ public:
 	Vec3 getPositionOfMassPoint(int index);
 	Vec3 getVelocityOfMassPoint(int index);
 	void applyExternalForce(Vec3 force);
+
+	//Specific Case Functions
+	void drawSimpleSetup();
+	void drawComplexSetup();
 	
 	// Do Not Change
 	void setIntegrator(int integrator) {
