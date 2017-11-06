@@ -1,4 +1,5 @@
 #include "MassSpringSystemSimulator.h"
+#include <math.h>
 
 MassSpringSystemSimulator::MassSpringSystemSimulator()
 {
@@ -96,6 +97,33 @@ void MassSpringSystemSimulator::simulateTimestep(float timeStep)
 	{
 	case 0:
 		//Simulate with Euler Integration
+		for each(MassPoint mp in masspoints)
+		{
+			//Reset Force
+			mp.Force = 0;
+
+			mp.Position += mp.Velocity * timeStep;
+		}
+
+		for each(Spring sp in springs)
+		{
+			Vec3 distance = masspoints[sp.masspoint1].Position - masspoints[sp.masspoint2].Position;
+			
+			float length = sqrt(pow(distance.x, 2) + pow(distance.y, 2) + pow(distance.z, 2));
+			Vec3 force = -1 * m_fStiffness * (length - sp.initialLength) * distance / length;
+
+			masspoints[sp.masspoint1].Force += force;
+			masspoints[sp.masspoint2].Force += force;
+		}
+
+		externalForcesCalculations(timeStep);
+		applyExternalForce(m_externalForce);
+
+		for each(MassPoint mp in masspoints)
+		{
+			mp.Velocity += timeStep * (mp.Force / m_fMass);
+		}
+
 		break;
 	case 1:
 		//Simulate with Leap-Frog Integration
@@ -125,55 +153,77 @@ void MassSpringSystemSimulator::onMouse(int x, int y)
 
 void MassSpringSystemSimulator::setMass(float mass)
 {
+	m_fMass = mass;
 }
 
 void MassSpringSystemSimulator::setStiffness(float stiffness)
 {
+	m_fStiffness = stiffness;
 }
 
 void MassSpringSystemSimulator::setDampingFactor(float damping)
 {
+	m_fDamping = damping;
 }
 
 int MassSpringSystemSimulator::addMassPoint(Vec3 position, Vec3 Velocity, bool isFixed)
 {
-	return 0;
+	MassPoint newPoint;
+
+	newPoint.Position = position;
+	newPoint.Velocity = Velocity;
+	newPoint.isFixed = isFixed;
+
+	masspoints.push_back(newPoint);
+
+	return masspoints.size - 1;
 }
 
 void MassSpringSystemSimulator::addSpring(int masspoint1, int masspoint2, float initialLength)
 {
+	Spring newSpring;
+
+	newSpring.masspoint1 = masspoint1;
+	newSpring.masspoint2 = masspoint2;
+	newSpring.initialLength = initialLength;
+
+	springs.push_back(newSpring);
 }
 
 int MassSpringSystemSimulator::getNumberOfMassPoints()
 {
-	return 0;
+	return masspoints.size;
 }
 
 int MassSpringSystemSimulator::getNumberOfSprings()
 {
-	return 0;
+	return springs.size;
 }
 
 Vec3 MassSpringSystemSimulator::getPositionOfMassPoint(int index)
 {
-	return Vec3();
+	return masspoints[index].Position;
 }
 
 Vec3 MassSpringSystemSimulator::getVelocityOfMassPoint(int index)
 {
-	return Vec3();
+	return masspoints[index].Velocity;
 }
 
 void MassSpringSystemSimulator::applyExternalForce(Vec3 force)
 {
+	for each(MassPoint mp in masspoints)
+	{
+		mp.Force += force;
+	}
 }
 
 void MassSpringSystemSimulator::drawSimpleSetup()
 {
-	DUC->DrawTriangleUsingShaders();
+	//DUC->DrawTriangleUsingShaders();
 }
 
 void MassSpringSystemSimulator::drawComplexSetup()
 {
-	DUC->DrawTriangleUsingShaders();
+	//DUC->DrawTriangleUsingShaders();
 }
