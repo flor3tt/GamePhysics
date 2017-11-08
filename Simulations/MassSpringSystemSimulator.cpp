@@ -6,7 +6,7 @@ MassSpringSystemSimulator::MassSpringSystemSimulator()
 	m_iTestCase = 0;
 	m_iIntegrator = 0;
 	m_fDamping = 0;
-	m_fGravity = 9.81f;
+	m_fGravity = -9.81f;
 	m_fStiffness = 40;
 	m_fMass = 10;
 }
@@ -34,7 +34,7 @@ void MassSpringSystemSimulator::initUI(DrawingUtilitiesClass * DUC)
 	case 2:
 		TwAddVarRW(DUC->g_pTweakBar, "Mass", TW_TYPE_FLOAT, &m_fMass, "step=0.5 min=0.5");
 		TwAddVarRW(DUC->g_pTweakBar, "Stiffness", TW_TYPE_FLOAT, &m_fStiffness, "step=0.5 min=0.5");
-		TwAddVarRW(DUC->g_pTweakBar, "Damping", TW_TYPE_FLOAT, &m_fDamping, "step=0.5 min=0.5");
+		TwAddVarRW(DUC->g_pTweakBar, "Damping", TW_TYPE_FLOAT, &m_fDamping, "step=0.5 min=0");
 		TwAddVarRW(DUC->g_pTweakBar, "Gravity", TW_TYPE_FLOAT, &m_fGravity, "step=0.01");
 		break;
 	default:
@@ -123,7 +123,7 @@ void MassSpringSystemSimulator::notifyCaseChanged(int testCase)
 		m_fDamping = 0;
 		m_iIntegrator = 0;
 
-		//EULER
+		
 		addMassPoint(Vec3(0, 0, 0), Vec3(-1, 0, 0), false);
 		addMassPoint(Vec3(0, 2, 0), Vec3(1, 0, 0), false);
 		addSpring(0, 1, 1);
@@ -131,6 +131,60 @@ void MassSpringSystemSimulator::notifyCaseChanged(int testCase)
 		break;
 	case 2:
 		cout << "Complex Scene Setup Simulation !\n";
+
+		m_fGravity = -9.81;
+		m_fMass = 10;
+		m_fStiffness = 40;
+		m_fDamping = 10;
+		m_iIntegrator = 0;
+
+		//Hängen von der Decke
+		addMassPoint(Vec3(0, 0.5, 0), Vec3(0, 0, 0), true);//0
+		addMassPoint(Vec3(0, 0.3, 0), Vec3(0, 0, 0), false);
+		addMassPoint(Vec3(0.1, 0.2, 0.1), Vec3(0, 0, 0), false);
+		addMassPoint(Vec3(0.1, 0.2, -0.1), Vec3(0, 0, 0), false);
+		addMassPoint(Vec3(-0.1, 0.2, 0.1), Vec3(0, 0, 0), false);
+		addSpring(0, 1, 0.2);
+		addSpring(1, 2, 0.15);
+		addSpring(1, 3, 0.15);
+		addSpring(1, 4, 0.15);
+		addSpring(2, 3, 0.15);
+		addSpring(2, 4, 0.15);
+		addSpring(3, 4, 0.15);
+
+		//Teil frei im Raum
+		addMassPoint(Vec3(-0.1, -0.5, -0.1), Vec3(0, 0, 0), false);//5
+		addMassPoint(Vec3(-0.1, -0.5, 0.1), Vec3(0, 0, 0), false);
+		addMassPoint(Vec3(0.1, -0.5, 0.1), Vec3(0, 0, 0), false);
+		addMassPoint(Vec3(0.1, -0.5, -0.1), Vec3(0, 0, 0), false);
+		addMassPoint(Vec3(0, -0.4, 0), Vec3(0, 0, 0), false);//9
+		addMassPoint(Vec3(-0.1, -0.3, -0.1), Vec3(0, 0, 0), false);
+		addMassPoint(Vec3(-0.1, -0.3, 0.1), Vec3(0, 0, 0), false);
+		addMassPoint(Vec3(0.1, -0.3, 0.1), Vec3(0, 0, 0), false);
+		addMassPoint(Vec3(0.1, -0.3, -0.1), Vec3(0, 0, 0), false);//13
+
+		addSpring(5, 6, 0.2);
+		addSpring(5, 8, 0.2);
+		addSpring(5, 9, 0.15);
+		addSpring(5, 10, 0.2);
+		addSpring(6, 7, 0.2);
+		addSpring(6, 9, 0.15);
+		addSpring(6, 11, 0.2);
+		addSpring(7, 8, 0.2);
+		addSpring(7, 9, 0.15);
+		addSpring(7, 12, 0.2);
+		addSpring(8, 9, 0.15);
+		addSpring(8, 13, 0.2);
+		addSpring(9, 10, 0.15);
+		addSpring(9, 11, 0.15);
+		addSpring(9, 12, 0.15);
+		addSpring(9, 13, 0.15);
+		addSpring(10, 11, 0.2);
+		addSpring(10, 13, 0.2);
+		addSpring(11, 12, 0.2);
+		addSpring(12, 13, 0.2);
+		
+
 	default:
 		cout << "Empty Test!\n";
 		break;
@@ -160,6 +214,10 @@ void MassSpringSystemSimulator::externalForcesCalculations(float timeElapsed)
 		m_externalForce = Vec3(0, 0, 0);
 		//m_vfMovableObjectFinalPos = m_vfMovableObjectPos;
 	}
+
+	//Add Gravity
+	m_externalForce.y += m_fMass * m_fGravity;
+
 }
 
 void MassSpringSystemSimulator::simulateTimestep(float timeStep)
@@ -185,6 +243,19 @@ void MassSpringSystemSimulator::simulateTimestep(float timeStep)
 		cout << "Invalid Integrator selected!\n";
 		break;
 	}
+
+	if (m_iTestCase == 2)
+	{
+		//Collision calculation
+		//i.e. make sure, that all MassPoints stay inside the cube
+		for each(MassPoint* mp in m_masspoints)
+		{
+			mp->Position.makeCeil(-0.5);
+			mp->Position.makeFloor(0.5);
+		}
+	}
+
+
 }
 
 void MassSpringSystemSimulator::simulateTimestepEuler(float timeStep)
@@ -211,11 +282,11 @@ void MassSpringSystemSimulator::simulateTimestepEuler(float timeStep)
 	//Caculate new Positions
 	for each(MassPoint* mp in m_masspoints)
 	{
-		//Integrate Position
-		mp->Position += mp->Velocity * timeStep;
+		if (mp->isFixed)
+			continue;
 
-		//Add Gravity
-		mp->Force += m_fMass * m_fGravity;
+		//Integrate Position
+		mp->Position += mp->Velocity * timeStep;		
 	}
 
 	externalForcesCalculations(timeStep);
