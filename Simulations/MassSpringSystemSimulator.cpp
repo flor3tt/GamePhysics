@@ -3,10 +3,10 @@
 
 MassSpringSystemSimulator::MassSpringSystemSimulator()
 {
-	m_iTestCase = 0;
+	m_iTestCase = 1;
 	m_iIntegrator = 0;
 	m_fDamping = 0;
-	m_fGravity = -9.81f;
+	m_fGravity = 0;
 	m_fStiffness = 40;
 	m_fMass = 10;
 }
@@ -32,9 +32,10 @@ void MassSpringSystemSimulator::initUI(DrawingUtilitiesClass * DUC)
 		TwAddVarRW(DUC->g_pTweakBar, "Integrator", TW_TYPE_INTEGRATOR, &m_iIntegrator, "");
 		break;
 	case 2:
-		TwAddVarRW(DUC->g_pTweakBar, "Mass", TW_TYPE_FLOAT, &m_fMass, "step=0.5 min=0.5");
+		TwAddVarRW(DUC->g_pTweakBar, "Integrator", TW_TYPE_INTEGRATOR, &m_iIntegrator, "");
+		TwAddVarRW(DUC->g_pTweakBar, "Mass", TW_TYPE_FLOAT, &m_fMass, "step=0.01 min=0.01");
 		TwAddVarRW(DUC->g_pTweakBar, "Stiffness", TW_TYPE_FLOAT, &m_fStiffness, "step=0.5 min=0.5");
-		TwAddVarRW(DUC->g_pTweakBar, "Damping", TW_TYPE_FLOAT, &m_fDamping, "step=0.5 min=0");
+		TwAddVarRW(DUC->g_pTweakBar, "Damping", TW_TYPE_FLOAT, &m_fDamping, "step=0.01 min=0");
 		TwAddVarRW(DUC->g_pTweakBar, "Gravity", TW_TYPE_FLOAT, &m_fGravity, "step=0.01");
 		break;
 	default:
@@ -132,12 +133,17 @@ void MassSpringSystemSimulator::notifyCaseChanged(int testCase)
 	case 2:
 		cout << "Complex Scene Setup Simulation !\n";
 
-		m_fGravity = -9.81;
-		m_fMass = 10;
-		m_fStiffness = 40;
-		m_fDamping = 10;
+		m_fGravity = 0;
+		m_fMass = 0.01;
+		m_fStiffness = 25;
+		m_fDamping = 0.01;
 		m_iIntegrator = 0;
 
+		addMassPoint(Vec3(0, 0.5, 0), Vec3(0, 0, 0), true);
+		addMassPoint(Vec3(0, 0, 0), Vec3(0, 0, 0), false);
+		addSpring(0, 1, 0.3);
+
+		/**
 		//Hängen von der Decke
 		addMassPoint(Vec3(0, 0.5, 0), Vec3(0, 0, 0), true);//0
 		addMassPoint(Vec3(0, 0.3, 0), Vec3(0, 0, 0), false);
@@ -183,8 +189,9 @@ void MassSpringSystemSimulator::notifyCaseChanged(int testCase)
 		addSpring(10, 13, 0.2);
 		addSpring(11, 12, 0.2);
 		addSpring(12, 13, 0.2);
-		
+		*/
 
+		break;
 	default:
 		cout << "Empty Test!\n";
 		break;
@@ -205,7 +212,7 @@ void MassSpringSystemSimulator::externalForcesCalculations(float timeElapsed)
 		Vec3 inputWorld = worldViewInv.transformVectorNormal(inputView);
 		// find a proper scale!
 		//float inputScale = 0.001f;
-		float inputScale = 1.0f;
+		float inputScale = 0.01f;
 		inputWorld = inputWorld * inputScale;
 		//m_vfMovableObjectPos = m_vfMovableObjectFinalPos + inputWorld;
 		m_externalForce = inputWorld;
@@ -266,15 +273,26 @@ void MassSpringSystemSimulator::simulateTimestepEuler(float timeStep)
 		mp->Force = 0;
 	}
 
+	//Applay external forces, i.e. User Input + Gravity
+	externalForcesCalculations(timeStep);
+	applyExternalForce(m_externalForce);
+
 	//Calculate Spring Forces
 	for each(Spring* sp in m_springs)
 	{
 		Vec3 distance = m_masspoints[sp->masspoint1]->Position - m_masspoints[sp->masspoint2]->Position;
-
+		
 		float length = sqrt(pow(distance.x, 2) + pow(distance.y, 2) + pow(distance.z, 2));
-		Vec3 force = -1 * m_fStiffness * (length - sp->initialLength) * distance / length;
-		force -= m_fDamping * (m_masspoints[sp->masspoint1]->Velocity + m_masspoints[sp->masspoint2]->Velocity);
+		if (length == 0)
+		{
+			m_masspoints[sp->masspoint2]->Position += Vec3(0, -0.001, 0);
 
+			distance = m_masspoints[sp->masspoint1]->Position - m_masspoints[sp->masspoint2]->Position;
+			length = sqrt(pow(distance.x, 2) + pow(distance.y, 2) + pow(distance.z, 2));
+		}
+		Vec3 force = -1 * m_fStiffness * (length - sp->initialLength) * distance / length;
+		//force -= m_fDamping * (m_masspoints[sp->masspoint1]->Velocity - m_masspoints[sp->masspoint2]->Velocity);
+		cout << length << "  " << force.toString() << endl;
 		m_masspoints[sp->masspoint1]->Force += force;
 		m_masspoints[sp->masspoint2]->Force -= force;
 	}
@@ -286,11 +304,8 @@ void MassSpringSystemSimulator::simulateTimestepEuler(float timeStep)
 			continue;
 
 		//Integrate Position
-		mp->Position += mp->Velocity * timeStep;		
+		mp->Position += timeStep * mp->Velocity;
 	}
-
-	externalForcesCalculations(timeStep);
-	applyExternalForce(m_externalForce);
 
 	//Caculate new Velocities
 	for each(MassPoint* mp in m_masspoints)
@@ -415,7 +430,7 @@ void MassSpringSystemSimulator::drawSimpleSetup()
 
 void MassSpringSystemSimulator::drawComplexSetup()
 {
-	Vec3 mpScale = Vec3(m_fMass * 0.001f);
+	Vec3 mpScale = Vec3(0.01);
 
 	//Setup Lighting
 	DUC->setUpLighting(Vec3(), 0.4*Vec3(1, 1, 1), 100, 0.6*Vec3(0.97, 0.86, 1));
