@@ -55,6 +55,7 @@ public:
 	void applyExternalForce(Vec3 force);
 	
 	Vec3 springForce(Vec3 position1, Vec3 position2, float initialLength);
+	Vec3 dampingForce(Vec3 springForce, Vec3 velocity);
 	void simulateTimestepEuler(float timeElapsed);
 	void simulateTimestepMidpoint(float timeElapsed);
 	void simulateTimestepLeapfrog(float timeElapsed);
