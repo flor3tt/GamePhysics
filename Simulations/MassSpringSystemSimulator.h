@@ -53,7 +53,8 @@ public:
 	Vec3 getPositionOfMassPoint(int index);
 	Vec3 getVelocityOfMassPoint(int index);
 	void applyExternalForce(Vec3 force);
-
+	
+	Vec3 springForce(Vec3 position1, Vec3 position2, float initialLength);
 	void simulateTimestepEuler(float timeElapsed);
 	void simulateTimestepMidpoint(float timeElapsed);
 	void simulateTimestepLeapfrog(float timeElapsed);
