@@ -54,7 +54,7 @@ namespace SimulatorTester
 			testSceneSetup(msss);
 			msss->setIntegrator(EULER);
 			for(int i =0; i <10; i++)
-				msss->simulateTimestep(0.005);;
+				msss->simulateTimestep(0.005);
 			Assert::AreEqual(-0.04994f,(float)msss->getPositionOfMassPoint(0).x,0.0001f,L"Mass Point at index 0, X value is wrong !!",LINE_INFO());
 			Assert::AreEqual(0.00449f,(float)msss->getPositionOfMassPoint(0).y,0.0001f,L"Mass Point at index 0, Y value is wrong !!",LINE_INFO());
 			Assert::AreEqual(0.0f,(float)msss->getPositionOfMassPoint(0).z,0.0001f,L"Mass Point at index 0, Z value is wrong !!",LINE_INFO());
