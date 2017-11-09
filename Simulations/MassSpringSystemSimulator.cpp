@@ -325,11 +325,13 @@ void MassSpringSystemSimulator::simulateTimestepMidpoint(float timeStep)
 {
 	externalForcesCalculations(timeStep);
 
+	// Midpoint position integration based on last position and velocity
 	vector<Vec3> pos_tmp;
 	for each(MassPoint* massPoint in m_masspoints) {
 		pos_tmp.push_back(massPoint->Position + (timeStep / 2) * massPoint->Velocity);
 	}
 
+	// Calculate midpoint spring forces using the updated pos_tmp
 	vector<Vec3> f_tmp;
 	f_tmp.resize(m_masspoints.size());
 	for each(Spring* spring in m_springs) {
@@ -340,6 +342,7 @@ void MassSpringSystemSimulator::simulateTimestepMidpoint(float timeStep)
 		f_tmp[spring->masspoint2] += -f_tmp_spring - m_fDamping * massPoint2->Velocity;
 	}
 	
+	// Integrate velocity using midpoint spring forces and these new values to integrate the position
 	vector<Vec3> v_tmp;
 	unsigned int i;
 	for (i = 0; i < m_masspoints.size(); i++) {
@@ -350,6 +353,7 @@ void MassSpringSystemSimulator::simulateTimestepMidpoint(float timeStep)
 		massPoint->Position += timeStep * v_tmp[i];
 	}
 
+	// Again, calculate spring forces
 	vector<Vec3> f_estimate;
 	f_estimate.resize(m_masspoints.size());
 	for each(Spring* spring in m_springs) {
@@ -358,6 +362,7 @@ void MassSpringSystemSimulator::simulateTimestepMidpoint(float timeStep)
 		f_estimate[spring->masspoint2] += -f_tmp_spring - m_fDamping * v_tmp[spring->masspoint2];
 	}
 
+	// Integrate Velocity
 	for (i = 0; i < m_masspoints.size(); i++) {
 		if (m_masspoints[i]->isFixed)
 			continue;
