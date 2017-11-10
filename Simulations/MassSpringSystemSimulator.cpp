@@ -80,6 +80,7 @@ void MassSpringSystemSimulator::notifyCaseChanged(int testCase)
 		m_fMass = 10;
 		m_fStiffness = 40;
 		m_fDamping = 0;
+		m_fBouncyness = 0;
 
 		//EULER
 		addMassPoint(Vec3(0, 0, 0), Vec3(-1, 0, 0), false);
@@ -121,6 +122,7 @@ void MassSpringSystemSimulator::notifyCaseChanged(int testCase)
 		m_fMass = 10;
 		m_fStiffness = 40;
 		m_fDamping = 0;
+		m_fBouncyness = 0;
 		m_iIntegrator = EULER;
 
 		
@@ -136,6 +138,7 @@ void MassSpringSystemSimulator::notifyCaseChanged(int testCase)
 		m_fMass = 0.01;
 		m_fStiffness = 25;
 		m_fDamping = 0.01;
+		m_fBouncyness = 0.5;
 		m_iIntegrator = MIDPOINT;
 
 		/**
@@ -258,8 +261,18 @@ void MassSpringSystemSimulator::simulateTimestep(float timeStep)
 		//i.e. make sure, that all MassPoints stay inside the cube
 		for each(MassPoint* mp in m_masspoints)
 		{
-			mp->Position.makeCeil(-0.5);
-			mp->Position.makeFloor(0.5);
+			//mp->Position.makeCeil(-0.5);
+			//mp->Position.makeFloor(0.5);
+			for (int i = 0; i < 3; ++i)
+			{
+				float j = mp->Position.value[i];
+
+				if (j < -0.5 || j > 0.5)
+				{
+					mp->Velocity.value[i] = -1 * m_fBouncyness * mp->Velocity.value[i];
+				}
+			}
+
 		}
 	}
 
@@ -415,6 +428,11 @@ void MassSpringSystemSimulator::setStiffness(float stiffness)
 void MassSpringSystemSimulator::setDampingFactor(float damping)
 {
 	m_fDamping = damping;
+}
+
+void MassSpringSystemSimulator::setBounciness(float bouncyness)
+{
+	m_fBouncyness = bouncyness;
 }
 
 int MassSpringSystemSimulator::addMassPoint(Vec3 position, Vec3 Velocity, bool isFixed)
