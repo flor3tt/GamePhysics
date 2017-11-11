@@ -9,6 +9,10 @@ MassSpringSystemSimulator::MassSpringSystemSimulator()
 	m_fGravity = 0;
 	m_fStiffness = 40;
 	m_fMass = 10;
+	
+	m_bRealTimeSimulation = false;
+	m_fSimulationSpeedFactor = 1;
+	lastTime = clock();
 }
 
 const char * MassSpringSystemSimulator::getTestCasesStr()
@@ -38,6 +42,8 @@ void MassSpringSystemSimulator::initUI(DrawingUtilitiesClass * DUC)
 		TwAddVarRW(DUC->g_pTweakBar, "Damping", TW_TYPE_FLOAT, &m_fDamping, "step=0.01 min=0");
 		TwAddVarRW(DUC->g_pTweakBar, "Gravity", TW_TYPE_FLOAT, &m_fGravity, "step=0.01");
 		TwAddVarRW(DUC->g_pTweakBar, "Integrator", TW_TYPE_INTEGRATOR, &m_iIntegrator, "");
+		TwAddVarRW(DUC->g_pTweakBar, "Real Time", TW_TYPE_BOOLCPP, &m_bRealTimeSimulation, "");
+		TwAddVarRW(DUC->g_pTweakBar, "Time Factor", TW_TYPE_FLOAT, &m_fSimulationSpeedFactor, "step=0.01 min=0.01");
 		break;
 	default:
 		break;
@@ -229,6 +235,11 @@ void MassSpringSystemSimulator::externalForcesCalculations(float timeElapsed)
 
 void MassSpringSystemSimulator::simulateTimestep(float timeStep)
 {
+	updateElapsedTime();
+	if (m_bRealTimeSimulation) {
+		timeStep = m_fElapsedRealTime;
+	}
+
 	if (m_iTestCase == 0)
 		return;
 	//Different Simulation dependent on Integrator
@@ -545,4 +556,11 @@ void MassSpringSystemSimulator::drawComplexSetup()
 		DUC->drawLine(m_masspoints[sp->masspoint1]->Position, springColor, m_masspoints[sp->masspoint2]->Position, springColor);
 	}
 	DUC->endLine();
+}
+
+void MassSpringSystemSimulator::updateElapsedTime()
+{
+	clock_t now = clock();
+	m_fElapsedRealTime = float(now - lastTime) / CLOCKS_PER_SEC * m_fSimulationSpeedFactor;
+	lastTime = now;
 }

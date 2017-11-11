@@ -79,6 +79,14 @@ private:
 	float m_fGravity;
 	float m_fBouncyness;
 
+	bool m_bRealTimeSimulation;
+	float m_fSimulationSpeedFactor;
+	float m_fElapsedRealTime;
+	clock_t lastTime;
+
+	// Calculate elapsed time
+	void updateElapsedTime();
+
 	//MassPoint and Spring Management
 	vector<MassPoint*> m_masspoints;
 	vector<Spring*> m_springs;
