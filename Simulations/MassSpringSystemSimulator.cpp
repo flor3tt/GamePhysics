@@ -167,33 +167,29 @@ void MassSpringSystemSimulator::notifyCaseChanged(int testCase)
 		addMassPoint(Vec3(-0.1, -0.5, 0.1), Vec3(0, 0, 0), false);
 		addMassPoint(Vec3(0.1, -0.5, 0.1), Vec3(0, 0, 0), false);
 		addMassPoint(Vec3(0.1, -0.5, -0.1), Vec3(0, 0, 0), false);
-		addMassPoint(Vec3(0, -0.4, 0), Vec3(0, 0, 0), false);//9
 		addMassPoint(Vec3(-0.1, -0.3, -0.1), Vec3(0, 0, 0), false);
 		addMassPoint(Vec3(-0.1, -0.3, 0.1), Vec3(0, 0, 0), false);
 		addMassPoint(Vec3(0.1, -0.3, 0.1), Vec3(0, 0, 0), false);
-		addMassPoint(Vec3(0.1, -0.3, -0.1), Vec3(0, 0, 0), false);//13
+		addMassPoint(Vec3(0.1, -0.3, -0.1), Vec3(0, 0, 0), false);//12
 
 		addSpring(5, 6, 0.2);
 		addSpring(5, 8, 0.2);
-		addSpring(5, 9, 0.15);
-		addSpring(5, 10, 0.2);
+		addSpring(5, 9, 0.2);
 		addSpring(6, 7, 0.2);
-		addSpring(6, 9, 0.15);
-		addSpring(6, 11, 0.2);
+		addSpring(6, 10, 0.2);
 		addSpring(7, 8, 0.2);
-		addSpring(7, 9, 0.15);
-		addSpring(7, 12, 0.2);
-		addSpring(8, 9, 0.15);
-		addSpring(8, 13, 0.2);
-		addSpring(9, 10, 0.15);
-		addSpring(9, 11, 0.15);
-		addSpring(9, 12, 0.15);
-		addSpring(9, 13, 0.15);
+		addSpring(7, 11, 0.2);
+		addSpring(8, 12, 0.2);
+		addSpring(9, 10, 0.2);
+		addSpring(9, 12, 0.2);
 		addSpring(10, 11, 0.2);
-		addSpring(10, 13, 0.2);
 		addSpring(11, 12, 0.2);
-		addSpring(12, 13, 0.2);
-		
+
+		addSpring(5, 11, 0.35);
+		addSpring(6, 12, 0.35);
+		addSpring(7, 9, 0.35);
+		addSpring(8, 10, 0.35);
+
 
 		break;
 	default:
@@ -267,9 +263,13 @@ void MassSpringSystemSimulator::simulateTimestep(float timeStep)
 			{
 				float j = mp->Position.value[i];
 
-				if (j < -0.5 || j > 0.5)
+				if(j < -0.5)
 				{
-					mp->Velocity.value[i] = -1 * m_fBouncyness * mp->Velocity.value[i];
+					mp->Velocity.value[i] = m_fBouncyness * mp->Velocity.getAbsolutes().value[i];
+				}
+				else if (j > 0.5)
+				{
+					mp->Velocity.value[i] = -1 * m_fBouncyness * mp->Velocity.getAbsolutes().value[i];
 				}
 			}
 
