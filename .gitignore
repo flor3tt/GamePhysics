@@ -1,3 +1,7 @@
 Win32
 .vs
 SimulationsRunner/Debug
+SimulationsRunner/Release
+SimulatorTester/Release
+Release
+AntTweakbar/lib

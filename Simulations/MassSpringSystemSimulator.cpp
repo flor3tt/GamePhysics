@@ -41,6 +41,7 @@ void MassSpringSystemSimulator::initUI(DrawingUtilitiesClass * DUC)
 		TwAddVarRW(DUC->g_pTweakBar, "Stiffness", TW_TYPE_FLOAT, &m_fStiffness, "step=0.5 min=0.5");
 		TwAddVarRW(DUC->g_pTweakBar, "Damping", TW_TYPE_FLOAT, &m_fDamping, "step=0.01 min=0");
 		TwAddVarRW(DUC->g_pTweakBar, "Gravity", TW_TYPE_FLOAT, &m_fGravity, "step=0.01");
+		TwAddVarRW(DUC->g_pTweakBar, "Bouncyness", TW_TYPE_FLOAT, &m_fBouncyness, "step=0.01, min=0");
 		TwAddVarRW(DUC->g_pTweakBar, "Integrator", TW_TYPE_INTEGRATOR, &m_iIntegrator, "");
 		TwAddVarRW(DUC->g_pTweakBar, "Real Time", TW_TYPE_BOOLCPP, &m_bRealTimeSimulation, "");
 		TwAddVarRW(DUC->g_pTweakBar, "Time Factor", TW_TYPE_FLOAT, &m_fSimulationSpeedFactor, "step=0.01 min=0.01");
@@ -87,6 +88,7 @@ void MassSpringSystemSimulator::notifyCaseChanged(int testCase)
 		m_fStiffness = 40;
 		m_fDamping = 0;
 		m_fBouncyness = 0;
+		m_bRealTimeSimulation = false;
 
 		//EULER
 		addMassPoint(Vec3(0, 0, 0), Vec3(-1, 0, 0), false);
@@ -129,6 +131,7 @@ void MassSpringSystemSimulator::notifyCaseChanged(int testCase)
 		m_fStiffness = 40;
 		m_fDamping = 0;
 		m_fBouncyness = 0;
+		m_bRealTimeSimulation = false;
 		m_iIntegrator = EULER;
 
 		
@@ -191,10 +194,10 @@ void MassSpringSystemSimulator::notifyCaseChanged(int testCase)
 		addSpring(10, 11, 0.2);
 		addSpring(11, 12, 0.2);
 
-		addSpring(5, 11, 0.35);
-		addSpring(6, 12, 0.35);
-		addSpring(7, 9, 0.35);
-		addSpring(8, 10, 0.35);
+		addSpring(5, 11, 0.4);
+		addSpring(6, 12, 0.4);
+		addSpring(7, 9, 0.4);
+		addSpring(8, 10, 0.4);
 
 
 		break;
@@ -274,13 +277,15 @@ void MassSpringSystemSimulator::simulateTimestep(float timeStep)
 			{
 				float j = mp->Position.value[i];
 
-				if(j < -0.5)
+				if(j <= -0.5)
 				{
 					mp->Velocity.value[i] = m_fBouncyness * mp->Velocity.getAbsolutes().value[i];
+					mp->Position.value[i] = -0.5;
 				}
-				else if (j > 0.5)
+				else if (j >= 0.5)
 				{
 					mp->Velocity.value[i] = -1 * m_fBouncyness * mp->Velocity.getAbsolutes().value[i];
+					mp->Position.value[i] = 0.5;
 				}
 			}
 
