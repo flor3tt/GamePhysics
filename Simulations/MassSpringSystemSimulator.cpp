@@ -139,6 +139,7 @@ void MassSpringSystemSimulator::notifyCaseChanged(int testCase)
 		addMassPoint(Vec3(0, 2, 0), Vec3(1, 0, 0), false);
 		addSpring(0, 1, 1);
 
+
 		break;
 	case 2:
 		cout << "Complex Scene Setup Simulation !\n";
@@ -220,7 +221,6 @@ void MassSpringSystemSimulator::externalForcesCalculations(float timeElapsed)
 		Vec3 inputView = Vec3((float)mouseDiff.x, (float)-mouseDiff.y, 0);
 		Vec3 inputWorld = worldViewInv.transformVectorNormal(inputView);
 		// find a proper scale!
-		//float inputScale = 0.001f;
 		float inputScale = 0.001f;
 		inputWorld = inputWorld * inputScale;
 		//m_vfMovableObjectPos = m_vfMovableObjectFinalPos + inputWorld;
@@ -245,6 +245,7 @@ void MassSpringSystemSimulator::simulateTimestep(float timeStep)
 
 	if (m_iTestCase == 0)
 		return;
+
 	//Different Simulation dependent on Integrator
 	switch (m_iIntegrator)
 	{
@@ -261,7 +262,7 @@ void MassSpringSystemSimulator::simulateTimestep(float timeStep)
 		simulateTimestepMidpoint(timeStep);
 		break;
 	default:
-		cout << "Invalid Integrator selected!\n";
+		cout << "Invalid Integrator selected!" << endl;
 		break;
 	}
 
