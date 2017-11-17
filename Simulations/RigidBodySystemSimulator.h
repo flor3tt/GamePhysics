@@ -14,11 +14,16 @@ class RigidBodySystemSimulator:public Simulator{
 	{
 		float Mass;
 		Vec3 Size;
+		Mat4 InvInertiaRaw;
+
 		Vec3 Position;
 		Vec3 VelocityLin;
 		Vec3 VelocityAng;
+		Vec3 Momentum;
 		Quat Orientation;
-		Mat4 InvInertia;
+
+		Vec3 Force;
+		Vec3 Torque;
 	};
 
 public:
@@ -45,6 +50,11 @@ public:
 	void addRigidBody(Vec3 position, Vec3 size, int mass);
 	void setOrientationOf(int i,Quat orientation);
 	void setVelocityOf(int i, Vec3 velocity);
+
+	Vec3 cross(Vec3 a, Vec3 b)
+	{
+		return Vec3(a.y*b.z - a.z*b.y, a.z*b.x - a.x*b.z, a.x*b.y - a.y*b.x);
+	}
 
 private:
 	// Attributes
