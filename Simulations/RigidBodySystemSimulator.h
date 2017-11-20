@@ -51,10 +51,6 @@ public:
 	void setOrientationOf(int i,Quat orientation);
 	void setVelocityOf(int i, Vec3 velocity);
 
-	Vec3 cross(Vec3 a, Vec3 b)
-	{
-		return Vec3(a.y*b.z - a.z*b.y, a.z*b.x - a.x*b.z, a.x*b.y - a.y*b.x);
-	}
 
 private:
 	// Attributes

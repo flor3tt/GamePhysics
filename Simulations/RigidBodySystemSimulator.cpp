@@ -25,6 +25,9 @@ void RigidBodySystemSimulator::reset()
 
 void RigidBodySystemSimulator::drawFrame(ID3D11DeviceContext * pd3dImmediateContext)
 {
+	if (m_iTestCase == 0)
+		return;
+
 	//Setup Lighting
 	DUC->setUpLighting(Vec3(), 0.4*Vec3(1, 1, 1), 100, 0.6*Vec3(0.97, 0.86, 1));
 
@@ -49,16 +52,34 @@ void RigidBodySystemSimulator::notifyCaseChanged(int testCase)
 	reset();
 
 	Mat4 rotMat;
+	//Vec3 pointPos;
 	switch (m_iTestCase)
 	{
 	case 0:
+		cout << "One Step Calculation!" << endl;
+
 		addRigidBody(Vec3(0, 0, 0), Vec3(1, 0.6, 0.5), 2);
 		setVelocityOf(0, Vec3(0, 0, 0));
 		rotMat.initRotationZ(90);
 		setOrientationOf(0, Quat(rotMat));
 		applyForceOnBody(0, Vec3(0.3, 0.5, 0.25), Vec3(1, 1, 0));
+
+		simulateTimestep(2);
+
+		cout << "Linear Velocity: " << m_rigidBodies[0]->VelocityLin << endl;
+		cout << "Angular Velocity: " << m_rigidBodies[0]->VelocityAng << endl;
+		//pointPos = m_rigidBodies[0]->Position + m_rigidBodies[0]->Orientation.getRotMat().transformVector(Vec3(0.3, 0.5, 0.25));
+		cout << "Point Velocity: " << m_rigidBodies[0]->VelocityLin + cross(m_rigidBodies[0]->VelocityAng, Vec3(-0.3, -0.5, -0.25)) << endl;
+		
 		break;
 	case 1:
+		cout << "One Body Simulation!" << endl;
+
+		addRigidBody(Vec3(0, 0, 0), Vec3(1, 0.6, 0.5), 2);
+		setVelocityOf(0, Vec3(0, 0, 0));
+		rotMat.initRotationZ(90);
+		setOrientationOf(0, Quat(rotMat));
+		applyForceOnBody(0, Vec3(0.3, 0.5, 0.25), Vec3(1, 1, 0));
 		break;
 	case 2:
 		break;
@@ -106,7 +127,8 @@ void RigidBodySystemSimulator::simulateTimestep(float timeStep)
 		Quat newRot = rb->Orientation + (timeStep / 2) * Quat(0, rb->VelocityAng.x, rb->VelocityAng.y, rb->VelocityAng.z) * rb->Orientation;	
 		double norm = newRot.norm();
 
-		rb->Orientation = Quat(newRot.x / norm, newRot.y / norm, newRot.z / norm, newRot.w / norm);
+		rb->Orientation = newRot;
+		rb->Orientation /= norm;
 
 		//Update angular velocity and stuff
 		rb->Momentum += timeStep * rb->Torque;
@@ -114,9 +136,9 @@ void RigidBodySystemSimulator::simulateTimestep(float timeStep)
 		Mat4 rotMat = rb->Orientation.getRotMat();
 		Mat4 rotMatTrans = rotMat;
 		rotMatTrans.transpose();
-		Mat4 invInertiaNow = rotMat * rb->InvInertiaRaw * rotMatTrans;
+		Mat4 invInertiaNow = rotMatTrans * rb->InvInertiaRaw * rotMat;
 		
-		rb->VelocityAng = invInertiaNow * rb->Momentum;
+		rb->VelocityAng = invInertiaNow.transformVector(rb->Momentum);
 
 		//Clear Force and Torque
 		rb->Force = Vec3(0, 0, 0);
@@ -161,7 +183,9 @@ Vec3 RigidBodySystemSimulator::getAngularVelocityOfRigidBody(int i)
 void RigidBodySystemSimulator::applyForceOnBody(int i, Vec3 loc, Vec3 force)
 {
 	m_rigidBodies[i]->Force += force;
-	m_rigidBodies[i]->Torque += cross(loc, force);
+
+	Vec3 relPos = loc - m_rigidBodies[i]->Position;
+	m_rigidBodies[i]->Torque += cross(relPos, force);
 }
 
 void RigidBodySystemSimulator::addRigidBody(Vec3 position, Vec3 size, int mass)
@@ -172,6 +196,10 @@ void RigidBodySystemSimulator::addRigidBody(Vec3 position, Vec3 size, int mass)
 	rb->Position = position;
 	rb->Size = size;
 	rb->Momentum = Vec3(0, 0, 0);
+
+	Mat4 rotMat;
+	rotMat.initRotationX(0);
+	rb->Orientation = Quat(rotMat);
 
 	//Calculate initial Inertia Matrix for a cuboid
 	Mat4 inertia;
@@ -184,7 +212,7 @@ void RigidBodySystemSimulator::addRigidBody(Vec3 position, Vec3 size, int mass)
 	matValues[0] = ((double)mass / 12) * (pow(size.y, 2) + pow(size.z, 2));
 	matValues[5] = ((double)mass / 12) * (pow(size.x, 2) + pow(size.z, 2));
 	matValues[10] = ((double)mass / 12) * (pow(size.x, 2) + pow(size.y, 2));
-
+	
 	inertia.initFromArray(matValues);
 	rb->InvInertiaRaw = inertia.inverse();
 
@@ -194,6 +222,7 @@ void RigidBodySystemSimulator::addRigidBody(Vec3 position, Vec3 size, int mass)
 void RigidBodySystemSimulator::setOrientationOf(int i, Quat orientation)
 {
 	m_rigidBodies[i]->Orientation = orientation;
+
 }
 
 void RigidBodySystemSimulator::setVelocityOf(int i, Vec3 velocity)
