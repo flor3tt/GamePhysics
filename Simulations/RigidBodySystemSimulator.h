@@ -64,5 +64,7 @@ private:
 	Point2D m_mouse;
 	Point2D m_trackmouse;
 	Point2D m_oldtrackmouse;
+
+	float m_fTimeFactor;
 	};
 #endif

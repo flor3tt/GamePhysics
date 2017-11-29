@@ -2,6 +2,7 @@
 
 RigidBodySystemSimulator::RigidBodySystemSimulator()
 {
+	m_fTimeFactor = 1;
 }
 
 const char * RigidBodySystemSimulator::getTestCasesStr()
@@ -53,8 +54,10 @@ void RigidBodySystemSimulator::notifyCaseChanged(int testCase)
 
 	Mat4 rotMat;
 	//Vec3 pointPos;
+	
 	switch (m_iTestCase)
 	{
+
 	case 0:
 		cout << "One Step Calculation!" << endl;
 
@@ -64,6 +67,7 @@ void RigidBodySystemSimulator::notifyCaseChanged(int testCase)
 		setOrientationOf(0, Quat(rotMat));
 		applyForceOnBody(0, Vec3(0.3, 0.5, 0.25), Vec3(1, 1, 0));
 
+		m_fTimeFactor = 1;
 		simulateTimestep(2);
 
 		cout << "Linear Velocity: " << m_rigidBodies[0]->VelocityLin << endl;
@@ -74,6 +78,10 @@ void RigidBodySystemSimulator::notifyCaseChanged(int testCase)
 		break;
 	case 1:
 		cout << "One Body Simulation!" << endl;
+
+		TwAddVarRW(DUC->g_pTweakBar, "Time Factor", TW_TYPE_FLOAT, &m_fTimeFactor, "step=0.01 min=0.01");
+
+		m_fTimeFactor = 0.01;
 
 		addRigidBody(Vec3(0, 0, 0), Vec3(1, 0.6, 0.5), 2);
 		setVelocityOf(0, Vec3(0, 0, 0));
@@ -117,14 +125,19 @@ void RigidBodySystemSimulator::externalForcesCalculations(float timeElapsed)
 
 void RigidBodySystemSimulator::simulateTimestep(float timeStep)
 {
+	float actualTimeStep = timeStep * m_fTimeFactor;
+
+	if (m_iTestCase == 1)
+		actualTimeStep = 2;
+
 	for each(RigidBody* rb in m_rigidBodies)
 	{
 		//Euler Step
-		rb->Position += timeStep * rb->VelocityLin;
+		rb->Position += actualTimeStep * rb->VelocityLin;
 		rb->VelocityLin += timeStep * ((m_externalForce + rb->Force) / rb->Mass);
 
 		//Update Orientation
-		Quat newRot = rb->Orientation + (timeStep / 2) * Quat(0, rb->VelocityAng.x, rb->VelocityAng.y, rb->VelocityAng.z) * rb->Orientation;	
+		Quat newRot = rb->Orientation + (actualTimeStep / 2) * Quat(0, rb->VelocityAng.x, rb->VelocityAng.y, rb->VelocityAng.z) * rb->Orientation;	
 		double norm = newRot.norm();
 
 		rb->Orientation = newRot;
