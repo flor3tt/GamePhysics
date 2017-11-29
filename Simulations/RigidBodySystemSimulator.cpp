@@ -137,7 +137,7 @@ void RigidBodySystemSimulator::simulateTimestep(float timeStep)
 		rb->VelocityLin += timeStep * ((m_externalForce + rb->Force) / rb->Mass);
 
 		//Update Orientation
-		Quat newRot = rb->Orientation + (actualTimeStep / 2) * Quat(0, rb->VelocityAng.x, rb->VelocityAng.y, rb->VelocityAng.z) * rb->Orientation;	
+		Quat newRot = rb->Orientation + (actualTimeStep / 2) * Quat(rb->VelocityAng.x, rb->VelocityAng.y, rb->VelocityAng.z, 0) * rb->Orientation;	
 		double norm = newRot.norm();
 
 		rb->Orientation = newRot;
