@@ -79,9 +79,9 @@ void RigidBodySystemSimulator::notifyCaseChanged(int testCase)
 	case 1:
 		cout << "One Body Simulation!" << endl;
 
-		TwAddVarRW(DUC->g_pTweakBar, "Time Factor", TW_TYPE_FLOAT, &m_fTimeFactor, "step=0.01 min=0.01");
+		TwAddVarRW(DUC->g_pTweakBar, "Time Factor", TW_TYPE_FLOAT, &m_fTimeFactor, "step=0.0001 min=0.0001");
 
-		m_fTimeFactor = 0.01;
+		m_fTimeFactor = 0.0001;
 
 		addRigidBody(Vec3(0, 0, 0), Vec3(1, 0.6, 0.5), 2);
 		setVelocityOf(0, Vec3(0, 0, 0));
@@ -125,10 +125,11 @@ void RigidBodySystemSimulator::externalForcesCalculations(float timeElapsed)
 
 void RigidBodySystemSimulator::simulateTimestep(float timeStep)
 {
+	if (m_iTestCase == 1)
+		timeStep = 2;
+
 	float actualTimeStep = timeStep * m_fTimeFactor;
 
-	if (m_iTestCase == 1)
-		actualTimeStep = 2;
 
 	for each(RigidBody* rb in m_rigidBodies)
 	{
@@ -149,7 +150,7 @@ void RigidBodySystemSimulator::simulateTimestep(float timeStep)
 		Mat4 rotMat = rb->Orientation.getRotMat();
 		Mat4 rotMatTrans = rotMat;
 		rotMatTrans.transpose();
-		Mat4 invInertiaNow = rotMatTrans * rb->InvInertiaRaw * rotMat;
+		Mat4 invInertiaNow = rotMat * rb->InvInertiaRaw * rotMatTrans;
 		
 		rb->VelocityAng = invInertiaNow.transformVector(rb->Momentum);
 
