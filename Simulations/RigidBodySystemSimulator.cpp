@@ -94,16 +94,20 @@ void RigidBodySystemSimulator::notifyCaseChanged(int testCase)
 	case 2:
 		cout << "One Body Simulation!" << endl;
 
+
 		TwAddVarRW(DUC->g_pTweakBar, "Time Factor", TW_TYPE_FLOAT, &m_fTimeFactor, "step=0.0001 min=0.0001");
 
 		m_fTimeFactor = 0.0001;
-
-		addRigidBody(Vec3(1, 0, 0), Vec3(1, 0.6, 0.5), 2);  //Erstellung von zwei Rigidbody
 		addRigidBody(Vec3(-1, 0, 0), Vec3(1, 0.6, 0.5), 2);
-		setVelocityOf(1,Vec3(1, 0, 0));   
-		setVelocityOf(0, Vec3(0, 0, 0));
-		rotMat.initRotationXYZ(90, 45, 45);
-		setOrientationOf(0, Quat(rotMat));
+		addRigidBody(Vec3(1, 0, 0), Vec3(1, 0.6, 0.5), 2);  //Erstellung von zwei Rigidbody
+
+		setVelocityOf(1, Vec3(0, 0, 0));
+		setVelocityOf(0,Vec3(1, 0, 0));   
+		
+		rotMat.initRotationXYZ(90, 0, 0);
+		
+
+		setOrientationOf(1, Quat(rotMat));
 		//applyForceOnBody(0, Vec3(0.3, 0.5, 0.25), Vec3(1, 1, 0));
 		break;
 	case 3:
@@ -200,16 +204,18 @@ void RigidBodySystemSimulator::simulateTimestep(float timeStep)
                 
 				Vec3 collisionA = info.collisionPointWorld - m_rigidBodies[i]->Position;   //lokale Collisionpoints vom ersten Rigidbodie
 				Vec3 collisionB = info.collisionPointWorld - m_rigidBodies[j]->Position;
-				Vec3 velocityA = m_rigidBodies[i]->VelocityLin + cross(m_rigidBodies[i]->VelocityAng, collisionA);
+     				Vec3 velocityA = m_rigidBodies[i]->VelocityLin + cross(m_rigidBodies[i]->VelocityAng, collisionA);
 				Vec3 velocityB = m_rigidBodies[j]->VelocityLin + cross(m_rigidBodies[j]->VelocityAng, collisionB);
 
 				Vec3 VelRel = velocityA - velocityB;  
-				if (!dot(VelRel, info.normalWorld) > 0) {
-					//ACHTUNG C=1 BITSCHES
-					float J = (-1 * (1 + 1)* dot(VelRel, info.normalWorld)) /
+				if (dot(VelRel, info.normalWorld) <= 0) {
+					
+
+					float J = (-1 * dot((1 + 1 )*VelRel, info.normalWorld)) /
 						((1 / m_rigidBodies[i]->Mass) + (1 / m_rigidBodies[j]->Mass) +
 							dot(cross(m_rigidBodies[i]->InvInertiaNow*cross(collisionA, info.normalWorld), collisionA) +
 								cross(m_rigidBodies[j]->InvInertiaNow*cross(collisionB, info.normalWorld), collisionB), info.normalWorld));
+					cout << J << endl; 
 					m_rigidBodies[i]->VelocityLin += (J*info.normalWorld) / m_rigidBodies[i]->Mass;
 					m_rigidBodies[j]->VelocityLin -= (J*info.normalWorld) / m_rigidBodies[j]->Mass;
 
