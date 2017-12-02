@@ -15,6 +15,7 @@ class RigidBodySystemSimulator:public Simulator{
 		float Mass;
 		Vec3 Size;
 		Mat4 InvInertiaRaw;
+		Mat4 InvInertiaNow;
 
 		Vec3 Position;
 		Vec3 VelocityLin;

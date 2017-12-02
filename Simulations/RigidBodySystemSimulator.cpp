@@ -1,4 +1,5 @@
 #include "RigidBodySystemSimulator.h"
+#include "collisionDetect.h"
 
 RigidBodySystemSimulator::RigidBodySystemSimulator()
 {
@@ -89,7 +90,21 @@ void RigidBodySystemSimulator::notifyCaseChanged(int testCase)
 		setOrientationOf(0, Quat(rotMat));
 		applyForceOnBody(0, Vec3(0.3, 0.5, 0.25), Vec3(1, 1, 0));
 		break;
+
 	case 2:
+		cout << "One Body Simulation!" << endl;
+
+		TwAddVarRW(DUC->g_pTweakBar, "Time Factor", TW_TYPE_FLOAT, &m_fTimeFactor, "step=0.0001 min=0.0001");
+
+		m_fTimeFactor = 0.0001;
+
+		addRigidBody(Vec3(1, 0, 0), Vec3(1, 0.6, 0.5), 2);  //Erstellung von zwei Rigidbody
+		addRigidBody(Vec3(-1, 0, 0), Vec3(1, 0.6, 0.5), 2);
+		setVelocityOf(1,Vec3(1, 0, 0));   
+		setVelocityOf(0, Vec3(0, 0, 0));
+		rotMat.initRotationXYZ(90, 45, 45);
+		setOrientationOf(0, Quat(rotMat));
+		//applyForceOnBody(0, Vec3(0.3, 0.5, 0.25), Vec3(1, 1, 0));
 		break;
 	case 3:
 		break;
@@ -131,6 +146,8 @@ void RigidBodySystemSimulator::simulateTimestep(float timeStep)
 	float actualTimeStep = timeStep * m_fTimeFactor;
 
 
+
+
 	for each(RigidBody* rb in m_rigidBodies)
 	{
 		//Euler Step
@@ -138,7 +155,7 @@ void RigidBodySystemSimulator::simulateTimestep(float timeStep)
 		rb->VelocityLin += timeStep * ((m_externalForce + rb->Force) / rb->Mass);
 
 		//Update Orientation
-		Quat newRot = rb->Orientation + (actualTimeStep / 2) * Quat(rb->VelocityAng.x, rb->VelocityAng.y, rb->VelocityAng.z, 0) * rb->Orientation;	
+		Quat newRot = rb->Orientation + (actualTimeStep / 2) * Quat(rb->VelocityAng.x, rb->VelocityAng.y, rb->VelocityAng.z, 0) * rb->Orientation;
 		double norm = newRot.norm();
 
 		rb->Orientation = newRot;
@@ -150,15 +167,68 @@ void RigidBodySystemSimulator::simulateTimestep(float timeStep)
 		Mat4 rotMat = rb->Orientation.getRotMat();
 		Mat4 rotMatTrans = rotMat;
 		rotMatTrans.transpose();
-		Mat4 invInertiaNow = rotMat * rb->InvInertiaRaw * rotMatTrans;
+		rb->InvInertiaNow = rotMat * rb->InvInertiaRaw * rotMatTrans;
 		
-		rb->VelocityAng = invInertiaNow.transformVector(rb->Momentum);
+		rb->VelocityAng = rb->InvInertiaNow.transformVector(rb->Momentum);
 
 		//Clear Force and Torque
 		rb->Force = Vec3(0, 0, 0);
 		rb->Torque = Vec3(0, 0, 0);
+
+	} 
+	
+	for (int i = 0; i < getNumberOfRigidBodies()-1; i++) {
+		Mat4 scaleMat;
+		Mat4 rotMat;
+		Mat4 translatMat;
+		
+		scaleMat.initScaling(m_rigidBodies[i]->Size.x, m_rigidBodies[i]->Size.y, m_rigidBodies[i]->Size.z);
+		rotMat = m_rigidBodies[i]->Orientation.getRotMat();
+		translatMat.initTranslation(m_rigidBodies[i]->Position.x, m_rigidBodies[i]->Position.y, m_rigidBodies[i]->Position.z);
+
+		Mat4 WorldTrans1 = scaleMat * rotMat * translatMat;
+		for (int j = i + 1; j < getNumberOfRigidBodies(); j++) {
+			CollisionInfo info;
+
+			scaleMat.initScaling(m_rigidBodies[j]->Size.x, m_rigidBodies[j]->Size.y, m_rigidBodies[j]->Size.z);
+			rotMat = m_rigidBodies[j]->Orientation.getRotMat();
+			translatMat.initTranslation(m_rigidBodies[j]->Position.x, m_rigidBodies[j]->Position.y, m_rigidBodies[j]->Position.z);
+
+			Mat4 WorldTrans2 = scaleMat * rotMat * translatMat;
+			info = checkCollisionSAT(WorldTrans1,WorldTrans2);
+			if (info.isValid) {
+                
+				Vec3 collisionA = info.collisionPointWorld - m_rigidBodies[i]->Position;   //lokale Collisionpoints vom ersten Rigidbodie
+				Vec3 collisionB = info.collisionPointWorld - m_rigidBodies[j]->Position;
+				Vec3 velocityA = m_rigidBodies[i]->VelocityLin + cross(m_rigidBodies[i]->VelocityAng, collisionA);
+				Vec3 velocityB = m_rigidBodies[j]->VelocityLin + cross(m_rigidBodies[j]->VelocityAng, collisionB);
+
+				Vec3 VelRel = velocityA - velocityB;  
+				if (!dot(VelRel, info.normalWorld) > 0) {
+					//ACHTUNG C=1 BITSCHES
+					float J = (-1 * (1 + 1)* dot(VelRel, info.normalWorld)) /
+						((1 / m_rigidBodies[i]->Mass) + (1 / m_rigidBodies[j]->Mass) +
+							dot(cross(m_rigidBodies[i]->InvInertiaNow*cross(collisionA, info.normalWorld), collisionA) +
+								cross(m_rigidBodies[j]->InvInertiaNow*cross(collisionB, info.normalWorld), collisionB), info.normalWorld));
+					m_rigidBodies[i]->VelocityLin += (J*info.normalWorld) / m_rigidBodies[i]->Mass;
+					m_rigidBodies[j]->VelocityLin -= (J*info.normalWorld) / m_rigidBodies[j]->Mass;
+
+					m_rigidBodies[i]->Momentum +=  cross(collisionA, J*info.normalWorld);
+					m_rigidBodies[j]->Momentum -=  cross(collisionB, J*info.normalWorld);
+				}
+
+			}
+
+
+
+		}
 	}
 }
+
+	
+	
+	
+
 
 void RigidBodySystemSimulator::onClick(int x, int y)
 {
