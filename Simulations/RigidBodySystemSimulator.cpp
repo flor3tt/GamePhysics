@@ -111,6 +111,24 @@ void RigidBodySystemSimulator::notifyCaseChanged(int testCase)
 		//applyForceOnBody(0, Vec3(0.3, 0.5, 0.25), Vec3(1, 1, 0));
 		break;
 	case 3:
+		cout << "Complex Simulation!" << endl;
+
+		m_fTimeFactor = 0.1;
+		m_iSelectedRigidbody = 0;
+
+		addRigidBody(Vec3(-0.5, 0, 0), Vec3(0.5, 0.3, 0.25), 2);
+		addRigidBody(Vec3(0.5, 0, 0), Vec3(0.5, 0.3, 0.25), 2);
+		addRigidBody(Vec3(0, 0.5, 0), Vec3(0.5, 0.3, 0.25), 2);
+		addRigidBody(Vec3(0, -0.5, 0), Vec3(0.5, 0.3, 0.25), 2);
+
+		setVelocityOf(0, Vec3(1, 0, 0));
+		setVelocityOf(1, Vec3(-1, 0, 0));
+		setVelocityOf(2, Vec3(0, -1, 0));
+		setVelocityOf(3, Vec3(0, 1, 0));
+
+		TwAddVarRW(DUC->g_pTweakBar, "Time Factor", TW_TYPE_FLOAT, &m_fTimeFactor, "step=0.0001 min=0.0001");
+		TwAddVarRW(DUC->g_pTweakBar, "Interaction Selection", TW_TYPE_INT16, &m_iSelectedRigidbody, "");
+
 		break;
 	}
 }
@@ -128,11 +146,18 @@ void RigidBodySystemSimulator::externalForcesCalculations(float timeElapsed)
 		worldViewInv = worldViewInv.inverse();
 		Vec3 inputView = Vec3((float)mouseDiff.x, (float)-mouseDiff.y, 0);
 		Vec3 inputWorld = worldViewInv.transformVectorNormal(inputView);
+				
 		// find a proper scale!
-		float inputScale = 0.001f;
+		float inputScale = 0.1f;
 		inputWorld = inputWorld * inputScale;
+
+		int selectedRb = m_iSelectedRigidbody % getNumberOfRigidBodies();
+		applyForceOnBody(selectedRb, m_rigidBodies[selectedRb]->Position, inputWorld);
+
 		//m_vfMovableObjectPos = m_vfMovableObjectFinalPos + inputWorld;
-		m_externalForce = inputWorld;
+		//m_externalForce = inputWorld;
+
+
 	}
 	else {
 		m_externalForce = Vec3(0, 0, 0);
@@ -215,7 +240,7 @@ void RigidBodySystemSimulator::simulateTimestep(float timeStep)
 						((1 / m_rigidBodies[i]->Mass) + (1 / m_rigidBodies[j]->Mass) +
 							dot(cross(m_rigidBodies[i]->InvInertiaNow*cross(collisionA, info.normalWorld), collisionA) +
 								cross(m_rigidBodies[j]->InvInertiaNow*cross(collisionB, info.normalWorld), collisionB), info.normalWorld));
-					cout << J << endl; 
+					
 					m_rigidBodies[i]->VelocityLin += (J*info.normalWorld) / m_rigidBodies[i]->Mass;
 					m_rigidBodies[j]->VelocityLin -= (J*info.normalWorld) / m_rigidBodies[j]->Mass;
 

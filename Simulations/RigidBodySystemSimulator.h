@@ -52,6 +52,12 @@ public:
 	void setOrientationOf(int i,Quat orientation);
 	void setVelocityOf(int i, Vec3 velocity);
 
+	void normalize(Vec3& in)
+	{
+		float norm = sqrt(pow(in.x, 2) + pow(in.y, 2) + pow(in.z, 2));
+
+		in = Vec3(in.x / norm, in.y / norm, in.z / norm);
+	}
 
 private:
 	// Attributes
@@ -67,5 +73,6 @@ private:
 	Point2D m_oldtrackmouse;
 
 	float m_fTimeFactor;
+	int m_iSelectedRigidbody;
 	};
 #endif
