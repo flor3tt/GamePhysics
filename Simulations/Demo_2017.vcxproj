@@ -226,6 +226,8 @@
   <ItemGroup>
     <ClCompile Include="MassSpringSystemSimulator.cpp" />
     <ClCompile Include="RigidBodySystemSimulator.cpp" />
+    <ClCompile Include="spheresystem.cpp" />
+    <ClCompile Include="SphereSystemSimulator.cpp" />
     <ClCompile Include="TemplateSimulator.cpp" />
     <ClCompile Include="util\FFmpeg.cpp" />
     <ClCompile Include="util\util.cpp" />
@@ -236,6 +238,8 @@
     <ClInclude Include="MassSpringSystemSimulator.h" />
     <ClInclude Include="RigidBodySystemSimulator.h" />
     <ClInclude Include="Simulator.h" />
+    <ClInclude Include="spheresystem.h" />
+    <ClInclude Include="SphereSystemSimulator.h" />
     <ClInclude Include="TemplateSimulator.h" />
     <ClInclude Include="util\FFmpeg.h" />
     <ClInclude Include="util\matrixbase.h" />
