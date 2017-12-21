@@ -8,11 +8,19 @@
 #define GRIDACC 1
 
 class SphereSystemSimulator:public Simulator{
+	struct Sphere
+	{
+		Vec3 Position;
+		Vec3 Velocity;
+		Vec3 force;
+
+	};
 public:
 	// Construtors
 	SphereSystemSimulator();
 	// Functions
 	const char * getTestCasesStr();
+	float length(Vec3 vector);
 	void initUI(DrawingUtilitiesClass * DUC);
 	void reset();
 	void drawFrame(ID3D11DeviceContext* pd3dImmediateContext);
@@ -36,7 +44,7 @@ protected:
 	float m_fForceScaling;
 	float m_fDamping;
 	int   m_iNumSpheres;
-	
+	vector<Sphere*> m_spheres;  //dynamisches Array
 	int   m_iKernel; // index of the m_Kernels[5], more detials in SphereSystemSimulator.cpp
 	static std::function<float(float)> m_Kernels[5];
 	

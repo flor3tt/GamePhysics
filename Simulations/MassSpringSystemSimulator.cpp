@@ -57,7 +57,7 @@ void MassSpringSystemSimulator::reset()
 	m_trackmouse.x = m_trackmouse.y = 0;
 	m_oldtrackmouse.x = m_oldtrackmouse.y = 0;
 
-	m_masspoints.clear();
+	m_spheres.clear();
 	m_springs.clear();
 }
 
@@ -102,7 +102,7 @@ void MassSpringSystemSimulator::notifyCaseChanged(int testCase)
 		cout << "After an Euler Step:" << endl;
 		for(int i = 0; i < getNumberOfMassPoints(); ++i)
 		{
-			cout << "points " << i << " vel " << m_masspoints[i]->Velocity.toString() << ", pos " << m_masspoints[i]->Position.toString() << endl;
+			cout << "points " << i << " vel " << m_spheres[i]->Velocity.toString() << ", pos " << m_spheres[i]->Position.toString() << endl;
 		}
 
 		reset();
@@ -119,7 +119,7 @@ void MassSpringSystemSimulator::notifyCaseChanged(int testCase)
 		cout << "After a Midpoint Step:" << endl;
 		for (int i = 0; i < getNumberOfMassPoints(); ++i)
 		{
-			cout << "points " << i << " vel " << m_masspoints[i]->Velocity.toString() << ", pos " << m_masspoints[i]->Position.toString() << endl;
+			cout << "points " << i << " vel " << m_spheres[i]->Velocity.toString() << ", pos " << m_spheres[i]->Position.toString() << endl;
 		}
 
 		break;
@@ -270,7 +270,7 @@ void MassSpringSystemSimulator::simulateTimestep(float timeStep)
 	{
 		//Collision calculation
 		//i.e. make sure, that all MassPoints stay inside the cube
-		for each(MassPoint* mp in m_masspoints)
+		for each(MassPoint* mp in m_spheres)
 		{
 			//mp->Position.makeCeil(-0.5);
 			//mp->Position.makeFloor(0.5);
@@ -314,7 +314,7 @@ Vec3 MassSpringSystemSimulator::dampingForce(Vec3 springForce, Vec3 velocity)
 
 void MassSpringSystemSimulator::simulateTimestepEuler(float timeStep)
 {
-	for each(MassPoint* mp in m_masspoints)
+	for each(MassPoint* mp in m_spheres)
 	{
 		//Reset Force
 		mp->Force = 0;
@@ -327,24 +327,24 @@ void MassSpringSystemSimulator::simulateTimestepEuler(float timeStep)
 	//Calculate Spring Forces
 	for each(Spring* sp in m_springs)
 	{
-		Vec3 distance = m_masspoints[sp->masspoint1]->Position - m_masspoints[sp->masspoint2]->Position;
+		Vec3 distance = m_spheres[sp->masspoint1]->Position - m_spheres[sp->masspoint2]->Position;
 		
 		float length = sqrt(pow(distance.x, 2) + pow(distance.y, 2) + pow(distance.z, 2));
 		if (length == 0)
 		{
-			m_masspoints[sp->masspoint2]->Position += Vec3(0, -0.001, 0);
+			m_spheres[sp->masspoint2]->Position += Vec3(0, -0.001, 0);
 
-			distance = m_masspoints[sp->masspoint1]->Position - m_masspoints[sp->masspoint2]->Position;
+			distance = m_spheres[sp->masspoint1]->Position - m_spheres[sp->masspoint2]->Position;
 			length = sqrt(pow(distance.x, 2) + pow(distance.y, 2) + pow(distance.z, 2));
 		}
 		Vec3 force = -1 * m_fStiffness * (length - sp->initialLength) * distance / length;
 
-		m_masspoints[sp->masspoint1]->Force += force - dampingForce(force, m_masspoints[sp->masspoint1]->Velocity);
-		m_masspoints[sp->masspoint2]->Force -= force - dampingForce(-1 * force, m_masspoints[sp->masspoint2]->Velocity);
+		m_spheres[sp->masspoint1]->Force += force - dampingForce(force, m_spheres[sp->masspoint1]->Velocity);
+		m_spheres[sp->masspoint2]->Force -= force - dampingForce(-1 * force, m_spheres[sp->masspoint2]->Velocity);
 	}
 
 	//Caculate new Positions
-	for each(MassPoint* mp in m_masspoints)
+	for each(MassPoint* mp in m_spheres)
 	{
 		if (mp->isFixed)
 			continue;
@@ -354,7 +354,7 @@ void MassSpringSystemSimulator::simulateTimestepEuler(float timeStep)
 	}
 
 	//Caculate new Velocities
-	for each(MassPoint* mp in m_masspoints)
+	for each(MassPoint* mp in m_spheres)
 	{
 		mp->Velocity += timeStep * (mp->Force / m_fMass);
 	}
@@ -366,16 +366,16 @@ void MassSpringSystemSimulator::simulateTimestepMidpoint(float timeStep)
 
 	// Midpoint position integration based on last position and velocity
 	vector<Vec3> pos_tmp;
-	for each(MassPoint* massPoint in m_masspoints) {
+	for each(MassPoint* massPoint in m_spheres) {
 		pos_tmp.push_back(massPoint->Position + (timeStep / 2) * massPoint->Velocity);
 	}
 
 	// Calculate midpoint spring forces using the updated pos_tmp
 	vector<Vec3> f_tmp;
-	f_tmp.resize(m_masspoints.size());
+	f_tmp.resize(m_spheres.size());
 	for each(Spring* spring in m_springs) {
-		MassPoint* massPoint1 = m_masspoints[spring->masspoint1];
-		MassPoint* massPoint2 = m_masspoints[spring->masspoint2];
+		MassPoint* massPoint1 = m_spheres[spring->masspoint1];
+		MassPoint* massPoint2 = m_spheres[spring->masspoint2];
 		Vec3 f_tmp_spring = springForce(pos_tmp[spring->masspoint1], pos_tmp[spring->masspoint2], spring->initialLength);
 		
 		f_tmp[spring->masspoint1] += f_tmp_spring -dampingForce(f_tmp_spring, massPoint1->Velocity);
@@ -385,8 +385,8 @@ void MassSpringSystemSimulator::simulateTimestepMidpoint(float timeStep)
 	// Integrate velocity using midpoint spring forces and these new values to integrate the position
 	vector<Vec3> v_tmp;
 	unsigned int i;
-	for (i = 0; i < m_masspoints.size(); i++) {
-		MassPoint* massPoint = m_masspoints[i];
+	for (i = 0; i < m_spheres.size(); i++) {
+		MassPoint* massPoint = m_spheres[i];
 		v_tmp.push_back(massPoint->Velocity + (timeStep / 2) * (f_tmp[i] / m_fMass));
 		if (massPoint->isFixed)
 			continue;
@@ -395,7 +395,7 @@ void MassSpringSystemSimulator::simulateTimestepMidpoint(float timeStep)
 
 	// Again, calculate spring forces
 	vector<Vec3> f_estimate;
-	f_estimate.resize(m_masspoints.size());
+	f_estimate.resize(m_spheres.size());
 	for each(Spring* spring in m_springs) {
 		Vec3 f_tmp_spring = springForce(pos_tmp[spring->masspoint1], pos_tmp[spring->masspoint2], spring->initialLength);
 		f_estimate[spring->masspoint1] += f_tmp_spring - dampingForce(f_tmp_spring, v_tmp[spring->masspoint1]);
@@ -403,10 +403,10 @@ void MassSpringSystemSimulator::simulateTimestepMidpoint(float timeStep)
 	}
 
 	// Integrate Velocity
-	for (i = 0; i < m_masspoints.size(); i++) {
-		if (m_masspoints[i]->isFixed)
+	for (i = 0; i < m_spheres.size(); i++) {
+		if (m_spheres[i]->isFixed)
 			continue;
-		m_masspoints[i]->Velocity += timeStep * ((f_estimate[i] + m_externalForce) / m_fMass);
+		m_spheres[i]->Velocity += timeStep * ((f_estimate[i] + m_externalForce) / m_fMass);
 	}
 
 }
@@ -460,9 +460,9 @@ int MassSpringSystemSimulator::addMassPoint(Vec3 position, Vec3 Velocity, bool i
 	newPoint->Velocity = Velocity;
 	newPoint->isFixed = isFixed;
 
-	m_masspoints.push_back(newPoint);
+	m_spheres.push_back(newPoint);
 
-	return m_masspoints.size() - 1;
+	return m_spheres.size() - 1;
 }
 
 void MassSpringSystemSimulator::addSpring(int masspoint1, int masspoint2, float initialLength)
@@ -478,7 +478,7 @@ void MassSpringSystemSimulator::addSpring(int masspoint1, int masspoint2, float 
 
 int MassSpringSystemSimulator::getNumberOfMassPoints()
 {
-	return m_masspoints.size();
+	return m_spheres.size();
 }
 
 int MassSpringSystemSimulator::getNumberOfSprings()
@@ -488,17 +488,17 @@ int MassSpringSystemSimulator::getNumberOfSprings()
 
 Vec3 MassSpringSystemSimulator::getPositionOfMassPoint(int index)
 {
-	return m_masspoints[index]->Position;
+	return m_spheres[index]->Position;
 }
 
 Vec3 MassSpringSystemSimulator::getVelocityOfMassPoint(int index)
 {
-	return m_masspoints[index]->Velocity;
+	return m_spheres[index]->Velocity;
 }
 
 void MassSpringSystemSimulator::applyExternalForce(Vec3 force)
 {
-	for each(MassPoint* mp in m_masspoints)
+	for each(MassPoint* mp in m_spheres)
 	{
 		mp->Force += force;
 	}
@@ -513,7 +513,7 @@ void MassSpringSystemSimulator::drawSimpleSetup()
 	DUC->setUpLighting(Vec3(), 0.4*Vec3(1, 1, 1), 100, 0.6*Vec3(0.97, 0.86, 1));
 
 	//Draw MassPoints
-	for each(MassPoint* mp in m_masspoints)
+	for each(MassPoint* mp in m_spheres)
 	{
 		DUC->drawSphere(mp->Position, mpScale);
 	}
@@ -522,7 +522,7 @@ void MassSpringSystemSimulator::drawSimpleSetup()
 	DUC->beginLine();
 	for each(Spring* sp in m_springs)
 	{
-		DUC->drawLine(m_masspoints[sp->masspoint1]->Position, springColor, m_masspoints[sp->masspoint2]->Position, springColor);
+		DUC->drawLine(m_spheres[sp->masspoint1]->Position, springColor, m_spheres[sp->masspoint2]->Position, springColor);
 	}
 	DUC->endLine();
 }
@@ -535,7 +535,7 @@ void MassSpringSystemSimulator::drawComplexSetup()
 	DUC->setUpLighting(Vec3(), 0.4*Vec3(1, 1, 1), 100, 0.6*Vec3(0.97, 0.86, 1));
 
 	//Draw MassPoints
-	for each(MassPoint* mp in m_masspoints)
+	for each(MassPoint* mp in m_spheres)
 	{
 		DUC->drawSphere(mp->Position, mpScale);
 	}
@@ -545,7 +545,7 @@ void MassSpringSystemSimulator::drawComplexSetup()
 	for each(Spring* sp in m_springs)
 	{
 		//Make Spring Color dependent on current spring Length
-		Vec3 distance = m_masspoints[sp->masspoint1]->Position - m_masspoints[sp->masspoint2]->Position;
+		Vec3 distance = m_spheres[sp->masspoint1]->Position - m_spheres[sp->masspoint2]->Position;
 		float length = sqrt(pow(distance.x, 2) + pow(distance.y, 2) + pow(distance.z, 2));
 
 		float greenAmount;
@@ -559,7 +559,7 @@ void MassSpringSystemSimulator::drawComplexSetup()
 		}
 		Vec3 springColor = Vec3(1 - greenAmount, greenAmount, 0);
 
-		DUC->drawLine(m_masspoints[sp->masspoint1]->Position, springColor, m_masspoints[sp->masspoint2]->Position, springColor);
+		DUC->drawLine(m_spheres[sp->masspoint1]->Position, springColor, m_spheres[sp->masspoint2]->Position, springColor);
 	}
 	DUC->endLine();
 }

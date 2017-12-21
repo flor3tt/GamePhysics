@@ -88,7 +88,7 @@ private:
 	void updateElapsedTime();
 
 	//MassPoint and Spring Management
-	vector<MassPoint*> m_masspoints;
+	vector<MassPoint*> m_spheres;
 	vector<Spring*> m_springs;
 
 	// UI Attributes

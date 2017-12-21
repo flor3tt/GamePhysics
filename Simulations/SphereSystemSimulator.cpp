@@ -1,6 +1,7 @@
 ﻿#include "SphereSystemSimulator.h"
 #include <math.h>
-
+#include "MassSpringSystemSimulator.h"
+              //Rückgabe //Eingabe 
 std::function<float(float)> SphereSystemSimulator::m_Kernels[5] = {
 	[](float x) {return 1.0f; },              // Constant, m_iKernel = 0
 	[](float x) {return 1.0f - x; },          // Linear, m_iKernel = 1, as given in the exercise Sheet, x = d/2r
@@ -16,6 +17,8 @@ SphereSystemSimulator::SphereSystemSimulator()
 	m_iAccelerator = 0;
 	m_fDamping = 0;
 	m_fMass = 10;
+	m_fRadius = 0.05;
+	m_iNumSpheres = 100;
 
 }
 
@@ -28,7 +31,7 @@ void SphereSystemSimulator::initUI(DrawingUtilitiesClass * DUC)
 {
 	this->DUC = DUC;
 
-	TwAddVarRW(DUC->g_pTweakBar, "Mass", TW_TYPE_FLOAT, &m_fMass, "step=0.01 min=0.01");
+	TwAddVarRW(DUC->g_pTweakBar, "Mass", TW_TYPE_FLOAT, &m_fMass, "step=0.01 min=0.01");  //User input
 	TwAddVarRW(DUC->g_pTweakBar, "Radius", TW_TYPE_FLOAT, &m_fRadius, "step=0.01 min=0.01");
 	TwAddVarRW(DUC->g_pTweakBar, "Num Spheres", TW_TYPE_INT16, &m_iNumSpheres, "");
 
@@ -36,6 +39,9 @@ void SphereSystemSimulator::initUI(DrawingUtilitiesClass * DUC)
 
 }
 
+float SphereSystemSimulator::length(Vec3 distance) {
+	return sqrt(pow(distance.x, 2) + pow(distance.y, 2) + pow(distance.z, 2));
+}
 void SphereSystemSimulator::reset()
 {
 	m_mouse.x = m_mouse.y = 0;
@@ -46,6 +52,11 @@ void SphereSystemSimulator::reset()
 
 void SphereSystemSimulator::drawFrame(ID3D11DeviceContext * pd3dImmediateContext)
 {
+	Vec3 mpScale = Vec3(0.01f, 0.01f, 0.01f);
+	DUC->setUpLighting(Vec3(), 0.4*Vec3(1, 1, 1), 100, 0.6*Vec3(0.97, 0.86, 1));
+	for each(Sphere* sphere in m_spheres) {
+		DUC->drawSphere(sphere->Position, mpScale);
+	}
 	/**
 
 	Vec3 mpScale = Vec3(0.01f, 0.01f, 0.01f);
@@ -68,12 +79,24 @@ void SphereSystemSimulator::notifyCaseChanged(int testCase)
 	m_iTestCase = testCase;
 
 	reset();
+	for (int i = 0; i < m_iNumSpheres; i++) {
 
+		Sphere* sphere = new Sphere();
+		sphere->Velocity = (0, 0, 0);
+		sphere->force = (0, 0, 0);
+		sphere->Position.x = -0.45 + (i % 9) * 0.1;
+		sphere->Position.z = -0.45 + (i / 9) * 0.1; //für alle vollen 9 Schritte
+		sphere->Position.y = 0.45 - (i / 81) *0.1;
+	}
 	switch (m_iTestCase)
 	{
 	case 0:
 		cout << "Simulation with naive collision detection!\n";
 		
+		m_iAccelerator = NAIVEACC;
+		
+		
+
 		break;
 	case 1:
 		cout << "Simulation with accelerated collision detection!\n";
@@ -119,60 +142,60 @@ void SphereSystemSimulator::externalForcesCalculations(float timeElapsed)
 
 void SphereSystemSimulator::simulateTimestep(float timeStep)
 {
-
+	
 	externalForcesCalculations(timeStep);
 
 	// Midpoint position integration based on last position and velocity
 	vector<Vec3> pos_tmp;
-	for each(MassPoint* massPoint in m_masspoints) {
+	for each(Sphere* massPoint in m_spheres) {
 		pos_tmp.push_back(massPoint->Position + (timeStep / 2) * massPoint->Velocity);
 	}
 
 	// Calculate midpoint spring forces using the updated pos_tmp
 	vector<Vec3> f_tmp;
-	f_tmp.resize(m_masspoints.size());
-	for each(Spring* spring in m_springs) {
-		MassPoint* massPoint1 = m_masspoints[spring->masspoint1];
-		MassPoint* massPoint2 = m_masspoints[spring->masspoint2];
+	f_tmp.resize(m_spheres.size());
+	
+	/*for each(Spring* spring in m_springs) {
+		Sphere* massPoint1 = m_spheres[spring->masspoint1];
+		Sphere* massPoint2 = m_spheres[spring->masspoint2];
 		Vec3 f_tmp_spring = springForce(pos_tmp[spring->masspoint1], pos_tmp[spring->masspoint2], spring->initialLength);
 
 		f_tmp[spring->masspoint1] += f_tmp_spring - dampingForce(f_tmp_spring, massPoint1->Velocity);
 		f_tmp[spring->masspoint2] += -f_tmp_spring - dampingForce(-1 * f_tmp_spring, massPoint2->Velocity);
-	}
+	}*/
+	for (int i = 0; i< m_spheres.size()-1; i++) {
+		for (int j = i + 1; j < m_spheres.size(); j++) {
+			Vec3 distance = m_spheres[i]->Position - m_spheres[j]->Position;
+			if (length(distance) < m_fRadius * 2) {
+				float force= 1*m_Kernels[1](length(distance));
+				f_tmp[i] += force;
+				f_tmp[j] -= force;
+			}
+		}
 
+	}
 	// Integrate velocity using midpoint spring forces and these new values to integrate the position
 	vector<Vec3> v_tmp;
 	unsigned int i;
-	for (i = 0; i < m_masspoints.size(); i++) {
-		MassPoint* massPoint = m_masspoints[i];
-		v_tmp.push_back(massPoint->Velocity + (timeStep / 2) * (f_tmp[i] / m_fMass));
-		if (massPoint->isFixed)
-			continue;
-		massPoint->Position += timeStep * v_tmp[i];
+	for (i = 0; i < m_spheres.size(); i++) {
+		Sphere* m_sphere = m_spheres[i];
+		v_tmp.push_back(m_spheres[i]->Velocity + (timeStep / 2) * (f_tmp[i] / m_fMass));
+		
+		m_spheres[i]->Position += timeStep * v_tmp[i];
 	}
-
-	// Again, calculate spring forces
-	vector<Vec3> f_estimate;
-	f_estimate.resize(m_masspoints.size());
-	for each(Spring* spring in m_springs) {
-		Vec3 f_tmp_spring = springForce(pos_tmp[spring->masspoint1], pos_tmp[spring->masspoint2], spring->initialLength);
-		f_estimate[spring->masspoint1] += f_tmp_spring - dampingForce(f_tmp_spring, v_tmp[spring->masspoint1]);
-		f_estimate[spring->masspoint2] += -f_tmp_spring - dampingForce(-1 * f_tmp_spring, v_tmp[spring->masspoint2]);
-	}
+	
 
 	// Integrate Velocity
-	for (i = 0; i < m_masspoints.size(); i++) {
-		if (m_masspoints[i]->isFixed)
-			continue;
-		m_masspoints[i]->Velocity += timeStep * ((f_estimate[i] + m_externalForce) / m_fMass);
+	for (i = 0; i < m_spheres.size(); i++) {
+		
+		m_spheres[i]->Velocity += timeStep * ((f_tmp[i] + m_externalForce) / m_fMass);
 	}
 
 
-	if (m_iTestCase == 2)
-	{
+	
 		//Collision calculation
 		//i.e. make sure, that all MassPoints stay inside the cube
-		for each(MassPoint* mp in m_masspoints)
+		for each(Sphere* mp in m_spheres)
 		{
 			//mp->Position.makeCeil(-0.5);
 			//mp->Position.makeFloor(0.5);
@@ -180,19 +203,19 @@ void SphereSystemSimulator::simulateTimestep(float timeStep)
 			{
 				float j = mp->Position.value[i];
 
-				if (j <= -0.5)
+				if (j <= -0.5 + m_fRadius)
 				{
-					mp->Velocity.value[i] = m_fBouncyness * mp->Velocity.getAbsolutes().value[i];
-					mp->Position.value[i] = -0.5;
+					mp->Velocity.value[i] = 0.5 * mp->Velocity.getAbsolutes().value[i];
+					mp->Position.value[i] = -0.5 + m_fRadius;
 				}
-				else if (j >= 0.5)
+				else if (j >= 0.5 - m_fRadius)
 				{
-					mp->Velocity.value[i] = -1 * m_fBouncyness * mp->Velocity.getAbsolutes().value[i];
-					mp->Position.value[i] = 0.5;
+					mp->Velocity.value[i] = -1 * 0.5 * mp->Velocity.getAbsolutes().value[i];
+					mp->Position.value[i] = 0.5 - m_fRadius;
 				}
 			}
 
-		}
+		
 	}
 
 
