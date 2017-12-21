@@ -18,7 +18,7 @@ SphereSystemSimulator::SphereSystemSimulator()
 	m_fDamping = 0;
 	m_fMass = 10;
 	m_fRadius = 0.05;
-	m_iNumSpheres = 100;
+	m_iNumSpheres = 150;
 
 }
 
@@ -48,14 +48,15 @@ void SphereSystemSimulator::reset()
 	m_trackmouse.x = m_trackmouse.y = 0;
 	m_oldtrackmouse.x = m_oldtrackmouse.y = 0;
 
+	m_spheres.clear();
 }
 
 void SphereSystemSimulator::drawFrame(ID3D11DeviceContext * pd3dImmediateContext)
 {
-	Vec3 mpScale = Vec3(0.01f, 0.01f, 0.01f);
+	Vec3 sphereScale = Vec3(m_fRadius);
 	DUC->setUpLighting(Vec3(), 0.4*Vec3(1, 1, 1), 100, 0.6*Vec3(0.97, 0.86, 1));
 	for each(Sphere* sphere in m_spheres) {
-		DUC->drawSphere(sphere->Position, mpScale);
+		DUC->drawSphere(sphere->Position, sphereScale);
 	}
 	/**
 
@@ -84,9 +85,11 @@ void SphereSystemSimulator::notifyCaseChanged(int testCase)
 		Sphere* sphere = new Sphere();
 		sphere->Velocity = (0, 0, 0);
 		sphere->force = (0, 0, 0);
-		sphere->Position.x = -0.45 + (i % 9) * 0.1;
-		sphere->Position.z = -0.45 + (i / 9) * 0.1; //für alle vollen 9 Schritte
-		sphere->Position.y = 0.45 - (i / 81) *0.1;
+		sphere->Position.x = -0.45 + (i % 10) * 0.1;
+		sphere->Position.z = -0.45 + (i / 10) % 10 * 0.1; //für alle vollen 10 Schritte
+		sphere->Position.y = 0.45 - (i / 100) * 0.1;
+
+		m_spheres.push_back(sphere);
 	}
 	switch (m_iTestCase)
 	{
@@ -163,17 +166,22 @@ void SphereSystemSimulator::simulateTimestep(float timeStep)
 		f_tmp[spring->masspoint1] += f_tmp_spring - dampingForce(f_tmp_spring, massPoint1->Velocity);
 		f_tmp[spring->masspoint2] += -f_tmp_spring - dampingForce(-1 * f_tmp_spring, massPoint2->Velocity);
 	}*/
-	for (int i = 0; i< m_spheres.size()-1; i++) {
-		for (int j = i + 1; j < m_spheres.size(); j++) {
+	for (int i = 0; i< m_spheres.size()-1; ++i)
+	{
+		for (int j = i + 1; j < m_spheres.size(); j++)
+		{
 			Vec3 distance = m_spheres[i]->Position - m_spheres[j]->Position;
-			if (length(distance) < m_fRadius * 2) {
-				float force= 1*m_Kernels[1](length(distance));
-				f_tmp[i] += force;
-				f_tmp[j] -= force;
+			if (length(distance) < m_fRadius * 2)
+			{
+				float force= 10000 *m_Kernels[1](length(distance));
+				f_tmp[i] += force * distance / length(distance);
+				f_tmp[j] -= force * distance / length(distance);
 			}
 		}
 
 	}
+
+
 	// Integrate velocity using midpoint spring forces and these new values to integrate the position
 	vector<Vec3> v_tmp;
 	unsigned int i;
