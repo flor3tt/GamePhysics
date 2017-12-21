@@ -174,12 +174,12 @@ void SphereSystemSimulator::simulateTimestep(float timeStep)
 			Vec3 distance = m_spheres[i]->Position - m_spheres[j]->Position;
 			if (length(distance) < m_fRadius * 2)
 			{
-				Vec3 force = m_fLambda * m_Kernels[1](length(distance)) * distance / length(distance);
+				Vec3 force = m_fLambda * m_Kernels[2](length(distance)) * distance / length(distance);
 				f_tmp[i] += force;
 				f_tmp[j] -= force;
 
 				f_tmp[i] -= dampingForce(force, m_spheres[i]->Velocity);
-				f_tmp[j] += dampingForce(-1 * force, m_spheres[j]->Velocity);
+				f_tmp[j] -= dampingForce(-1 * force, m_spheres[j]->Velocity);
 			}
 		}
 
@@ -217,12 +217,12 @@ void SphereSystemSimulator::simulateTimestep(float timeStep)
 
 				if (j <= -0.5 + m_fRadius)
 				{
-					mp->Velocity.value[i] = 0.5 * mp->Velocity.getAbsolutes().value[i];
+					mp->Velocity.value[i] = 0.1 * mp->Velocity.getAbsolutes().value[i];
 					mp->Position.value[i] = -0.5 + m_fRadius;
 				}
 				else if (j >= 0.5 - m_fRadius)
 				{
-					mp->Velocity.value[i] = -1 * 0.5 * mp->Velocity.getAbsolutes().value[i];
+					mp->Velocity.value[i] = -1 * 0.1 * mp->Velocity.getAbsolutes().value[i];
 					mp->Position.value[i] = 0.5 - m_fRadius;
 				}
 			}
