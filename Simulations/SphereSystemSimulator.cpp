@@ -15,11 +15,11 @@ SphereSystemSimulator::SphereSystemSimulator()
 {
 	m_iTestCase = 1;
 	m_iAccelerator = 0;
-	m_fDamping = 0;
-	m_fMass = 10;
+	m_fDamping = 0.7;
+	m_fMass = 0.1;
 	m_fRadius = 0.05;
-	m_iNumSpheres = 150;
-
+	m_iNumSpheres = 100;
+	m_fLambda = 10;
 }
 
 const char * SphereSystemSimulator::getTestCasesStr()
@@ -33,6 +33,7 @@ void SphereSystemSimulator::initUI(DrawingUtilitiesClass * DUC)
 
 	TwAddVarRW(DUC->g_pTweakBar, "Mass", TW_TYPE_FLOAT, &m_fMass, "step=0.01 min=0.01");  //User input
 	TwAddVarRW(DUC->g_pTweakBar, "Radius", TW_TYPE_FLOAT, &m_fRadius, "step=0.01 min=0.01");
+	TwAddVarRW(DUC->g_pTweakBar, "Lamda", TW_TYPE_FLOAT, &m_fLambda, "step=0.01 min=0.01");
 	TwAddVarRW(DUC->g_pTweakBar, "Num Spheres", TW_TYPE_INT16, &m_iNumSpheres, "");
 
 	TwAddVarRW(DUC->g_pTweakBar, "Damping", TW_TYPE_FLOAT, &m_fDamping, "step=0.01 min=0");
@@ -84,10 +85,9 @@ void SphereSystemSimulator::notifyCaseChanged(int testCase)
 
 		Sphere* sphere = new Sphere();
 		sphere->Velocity = (0, 0, 0);
-		sphere->force = (0, 0, 0);
-		sphere->Position.x = -0.45 + (i % 10) * 0.1;
-		sphere->Position.z = -0.45 + (i / 10) % 10 * 0.1; //für alle vollen 10 Schritte
-		sphere->Position.y = 0.45 - (i / 100) * 0.1;
+		sphere->Position.x = -0.44 + (i % 9) * 0.105 + (i / 81) * 0.01;
+		sphere->Position.z = -0.44 + (i / 9) % 9 * 0.105 + (i / 81) * 0.01; //für alle vollen 10 Schritte
+		sphere->Position.y = 0.44 - (i / 81) * 0.11;
 
 		m_spheres.push_back(sphere);
 	}
@@ -131,7 +131,8 @@ void SphereSystemSimulator::externalForcesCalculations(float timeElapsed)
 		float inputScale = 0.001f;
 		inputWorld = inputWorld * inputScale;
 		//m_vfMovableObjectPos = m_vfMovableObjectFinalPos + inputWorld;
-		m_externalForce = inputWorld;
+		//m_externalForce = inputWorld;
+		m_externalForce = Vec3(0, 0, 0);
 	}
 	else {
 		m_externalForce = Vec3(0, 0, 0);
@@ -173,9 +174,12 @@ void SphereSystemSimulator::simulateTimestep(float timeStep)
 			Vec3 distance = m_spheres[i]->Position - m_spheres[j]->Position;
 			if (length(distance) < m_fRadius * 2)
 			{
-				float force= 10000 *m_Kernels[1](length(distance));
-				f_tmp[i] += force * distance / length(distance);
-				f_tmp[j] -= force * distance / length(distance);
+				Vec3 force = m_fLambda * m_Kernels[1](length(distance)) * distance / length(distance);
+				f_tmp[i] += force;
+				f_tmp[j] -= force;
+
+				f_tmp[i] -= dampingForce(force, m_spheres[i]->Velocity);
+				f_tmp[j] += dampingForce(-1 * force, m_spheres[j]->Velocity);
 			}
 		}
 
@@ -229,12 +233,12 @@ void SphereSystemSimulator::simulateTimestep(float timeStep)
 
 }
 
-Vec3 SphereSystemSimulator::dampingForce(Vec3 springForce, Vec3 velocity)
+Vec3 SphereSystemSimulator::dampingForce(Vec3 repulsionForce, Vec3 velocity)
 {
-	if (springForce.value[springForce.getAbsolutes().maxComponentId()] == 0)
+	if (repulsionForce.value[repulsionForce.getAbsolutes().maxComponentId()] == 0)
 		return Vec3(0, 0, 0);
 
-	Vec3 force_unit = springForce / sqrt(pow(springForce.x, 2) + pow(springForce.y, 2) + pow(springForce.z, 2));
+	Vec3 force_unit = repulsionForce / sqrt(pow(repulsionForce.x, 2) + pow(repulsionForce.y, 2) + pow(repulsionForce.z, 2));
 
 	return m_fDamping * force_unit * (velocity.x * force_unit.x + velocity.y * force_unit.y + velocity.z * force_unit.z);
 }
