@@ -13,7 +13,7 @@ std::function<float(float)> SphereSystemSimulator::m_Kernels[5] = {
 
 SphereSystemSimulator::SphereSystemSimulator()
 {
-	m_iTestCase = 2;
+	m_iTestCase = 0;
 	m_iAccelerator = 0;
 	m_fDamping = 0.7;
 	m_fMass = 0.1;
@@ -128,19 +128,19 @@ void SphereSystemSimulator::notifyCaseChanged(int testCase)
 		for (int i = 0; i < m_grid.size() - 1; ++i)
 		{
 			int iX = i % numCellsPerRow;
-			int iY = i / numCellsPerRow;
-			int iZ = i / (numCellsPerRow * numCellsPerRow);
+			int iZ = (i / numCellsPerRow) % numCellsPerRow;
+			int iY = i / (numCellsPerRow * numCellsPerRow);
 
 			for (int j = i + 1; j < m_grid.size(); ++j)
 			{
 				int jX = j % numCellsPerRow;
-				int jY = j / numCellsPerRow;
-				int jZ = j / (numCellsPerRow * numCellsPerRow);
+				int jZ = (j / numCellsPerRow) % numCellsPerRow;
+				int jY = j / (numCellsPerRow * numCellsPerRow);
 
 				if (abs(iX - jX) <= 1 && abs(iY - jY) <= 1 && abs(iZ - jZ) <= 1)
 				{
 					m_adjacentCells[i].push_back(j);
-					m_adjacentCells[j].push_back(i);
+					//m_adjacentCells[j].push_back(i);
 				}
 			}
 		}
@@ -216,27 +216,22 @@ bool VectorContains(vector<int> vec, int value)
 void SphereSystemSimulator::simulateTimestep(float timeStep)
 {
 
-	cout << "START0" << endl;
 	externalForcesCalculations(timeStep);
 
 	if (m_iAccelerator == GRIDACC)
 	{
-		for each(vector<int> cell in m_grid)
+		for(int i = 0; i < m_grid.size(); ++i)
 		{
-			cell.clear();
+			m_grid[i].clear();
 		}
 
-		cout << "START0,5" << endl;
 		//Store balls in cells
 		for(int i = 0; i < m_iNumSpheres; ++i)
 		{
 			Sphere* sphere = m_spheres[i];
 
-			cout << PositionToCell(m_spheres[i]->Position) << endl;
-			cout << m_spheres[i]->Position << endl;
 			m_grid[PositionToCell(m_spheres[i]->Position)].push_back(i);
 		}
-		cout << "START1" << endl;
 
 	}
 
@@ -245,7 +240,7 @@ void SphereSystemSimulator::simulateTimestep(float timeStep)
 	for each(Sphere* massPoint in m_spheres) {
 		pos_tmp.push_back(massPoint->Position + (timeStep / 2) * massPoint->Velocity);
 	}
-
+	
 	// Calculate midpoint spring forces using the updated pos_tmp
 	vector<Vec3> f_tmp;
 	f_tmp.resize(m_spheres.size());
@@ -280,7 +275,6 @@ void SphereSystemSimulator::simulateTimestep(float timeStep)
 	else if (m_iAccelerator == GRIDACC)
 	{
 
-		cout << "START" << endl;
 		vector<int> processedCells;
 
 		for (int i = 0; i < m_grid.size(); ++i)
@@ -296,17 +290,19 @@ void SphereSystemSimulator::simulateTimestep(float timeStep)
 					{
 						for (int j = 0; j < m_grid[i].size() - 1; ++j)
 						{
+							int jID = m_grid[i][j];
 							for (int k = j + 1; k < m_grid[i].size(); ++k)
 							{
-								Vec3 distance = m_spheres[j]->Position - m_spheres[k]->Position;
+								int kID = m_grid[i][k];
+								Vec3 distance = m_spheres[jID]->Position - m_spheres[kID]->Position;
 								if (length(distance) < m_fRadius * 2)
 								{
 									Vec3 force = m_fLambda * m_Kernels[m_iKernel](length(distance)) * distance / length(distance);
-									f_tmp[j] += force;
-									f_tmp[k] -= force;
+									f_tmp[jID] += force;
+									f_tmp[kID] -= force;
 
-									f_tmp[j] -= dampingForce(force, m_spheres[j]->Velocity);
-									f_tmp[k] -= dampingForce(-1 * force, m_spheres[k]->Velocity);
+									f_tmp[jID] -= dampingForce(force, m_spheres[jID]->Velocity);
+									f_tmp[kID] -= dampingForce(-1 * force, m_spheres[kID]->Velocity);
 								}
 							}
 						}
@@ -319,19 +315,22 @@ void SphereSystemSimulator::simulateTimestep(float timeStep)
 						{
 							if (!m_grid[adjCell].empty())
 							{
-								for (int j = 0; j < m_grid[i].size(); ++i)
+								for (int j = 0; j < m_grid[i].size(); ++j)
 								{
+									int jID = m_grid[i][j];
 									for (int k = 0; k < m_grid[adjCell].size(); ++k)
 									{
-										Vec3 distance = m_spheres[j]->Position - m_spheres[k]->Position;
+										int kID = m_grid[adjCell][k];
+										
+										Vec3 distance = m_spheres[jID]->Position - m_spheres[kID]->Position;
 										if (length(distance) < m_fRadius * 2)
 										{
 											Vec3 force = m_fLambda * m_Kernels[m_iKernel](length(distance)) * distance / length(distance);
-											f_tmp[j] += force;
-											f_tmp[k] -= force;
+											f_tmp[jID] += force;
+											f_tmp[kID] -= force;
 
-											f_tmp[j] -= dampingForce(force, m_spheres[j]->Velocity);
-											f_tmp[k] -= dampingForce(-1 * force, m_spheres[k]->Velocity);
+											f_tmp[jID] -= dampingForce(force, m_spheres[jID]->Velocity);
+											f_tmp[kID] -= dampingForce(-1 * force, m_spheres[kID]->Velocity);
 										}
 									}
 								}
@@ -342,8 +341,8 @@ void SphereSystemSimulator::simulateTimestep(float timeStep)
 			}
 		}
 
-		cout << "END" << endl;
 	}
+
 
 
 	// Integrate velocity using midpoint spring forces and these new values to integrate the position
@@ -355,7 +354,7 @@ void SphereSystemSimulator::simulateTimestep(float timeStep)
 		
 		m_spheres[i]->Position += timeStep * v_tmp[i];
 	}
-	
+
 
 	// Integrate Velocity
 	for (i = 0; i < m_spheres.size(); i++) {
@@ -363,9 +362,7 @@ void SphereSystemSimulator::simulateTimestep(float timeStep)
 		m_spheres[i]->Velocity += timeStep * ((f_tmp[i] + m_externalForce) / m_fMass);
 	}
 
-
-	cout << "END2" << endl;
-	
+		
 		//Collision calculation
 		for each(Sphere* mp in m_spheres)
 		{
@@ -387,8 +384,6 @@ void SphereSystemSimulator::simulateTimestep(float timeStep)
 				}
 			}
 		}	
-
-		cout << "END3" << endl;
 
 }
 
