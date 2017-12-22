@@ -13,13 +13,14 @@ std::function<float(float)> SphereSystemSimulator::m_Kernels[5] = {
 
 SphereSystemSimulator::SphereSystemSimulator()
 {
-	m_iTestCase = 1;
+	m_iTestCase = 2;
 	m_iAccelerator = 0;
 	m_fDamping = 0.7;
 	m_fMass = 0.1;
 	m_fRadius = 0.05;
 	m_iNumSpheres = 100;
 	m_fLambda = 10;
+	m_iKernel = 2;
 }
 
 const char * SphereSystemSimulator::getTestCasesStr()
@@ -50,6 +51,8 @@ void SphereSystemSimulator::reset()
 	m_oldtrackmouse.x = m_oldtrackmouse.y = 0;
 
 	m_spheres.clear();
+
+	m_grid.clear();
 }
 
 void SphereSystemSimulator::drawFrame(ID3D11DeviceContext * pd3dImmediateContext)
@@ -81,6 +84,7 @@ void SphereSystemSimulator::notifyCaseChanged(int testCase)
 	m_iTestCase = testCase;
 
 	reset();
+	
 	for (int i = 0; i < m_iNumSpheres; i++) {
 
 		Sphere* sphere = new Sphere();
@@ -91,6 +95,9 @@ void SphereSystemSimulator::notifyCaseChanged(int testCase)
 
 		m_spheres.push_back(sphere);
 	}
+
+	int numCellsPerRow;
+
 	switch (m_iTestCase)
 	{
 	case 0:
@@ -104,6 +111,40 @@ void SphereSystemSimulator::notifyCaseChanged(int testCase)
 	case 1:
 		cout << "Simulation with accelerated collision detection!\n";
 		
+		m_iAccelerator = GRIDACC;
+
+		numCellsPerRow = 1 / (2 * m_fRadius);
+
+		m_grid.resize(pow(numCellsPerRow, 3));
+		
+		for each(vector<int> cell in m_grid)
+		{
+			cell.clear();
+		}
+
+		m_adjacentCells.resize(m_grid.size());
+
+		//Calculate adjacent cells
+		for (int i = 0; i < m_grid.size() - 1; ++i)
+		{
+			int iX = i % numCellsPerRow;
+			int iY = i / numCellsPerRow;
+			int iZ = i / (numCellsPerRow * numCellsPerRow);
+
+			for (int j = i + 1; j < m_grid.size(); ++j)
+			{
+				int jX = j % numCellsPerRow;
+				int jY = j / numCellsPerRow;
+				int jZ = j / (numCellsPerRow * numCellsPerRow);
+
+				if (abs(iX - jX) <= 1 && abs(iY - jY) <= 1 && abs(iZ - jZ) <= 1)
+				{
+					m_adjacentCells[i].push_back(j);
+					m_adjacentCells[j].push_back(i);
+				}
+			}
+		}
+
 		break;
 	case 2:
 		cout << "Accuracy comparison of both collision detections!\n";
@@ -144,10 +185,60 @@ void SphereSystemSimulator::externalForcesCalculations(float timeElapsed)
 
 }
 
+int SphereSystemSimulator::PositionToCell(Vec3 Position)
+{
+	int numCellsPerRow = 1 / (2 * m_fRadius);
+
+	//Map positions to [0;1]
+	Position.x += 0.5;
+	Position.y += 0.5;
+	Position.z += 0.5;
+
+	//Map positions to ints in [0;numCellsPerRow)
+	int gridPosX = int(Position.x * numCellsPerRow);
+	int gridPosY = int(Position.y * numCellsPerRow);
+	int gridPosZ = int(Position.z * numCellsPerRow);
+
+	return gridPosX + gridPosY * numCellsPerRow * numCellsPerRow + gridPosZ * numCellsPerRow;
+}
+
+bool VectorContains(vector<int> vec, int value)
+{
+	for each(int i in vec)
+	{
+		if (i == value)
+			return true;
+	}
+
+	return false;
+}
+
 void SphereSystemSimulator::simulateTimestep(float timeStep)
 {
-	
+
+	cout << "START0" << endl;
 	externalForcesCalculations(timeStep);
+
+	if (m_iAccelerator == GRIDACC)
+	{
+		for each(vector<int> cell in m_grid)
+		{
+			cell.clear();
+		}
+
+		cout << "START0,5" << endl;
+		//Store balls in cells
+		for(int i = 0; i < m_iNumSpheres; ++i)
+		{
+			Sphere* sphere = m_spheres[i];
+
+			cout << PositionToCell(m_spheres[i]->Position) << endl;
+			cout << m_spheres[i]->Position << endl;
+			m_grid[PositionToCell(m_spheres[i]->Position)].push_back(i);
+		}
+		cout << "START1" << endl;
+
+	}
 
 	// Midpoint position integration based on last position and velocity
 	vector<Vec3> pos_tmp;
@@ -167,22 +258,91 @@ void SphereSystemSimulator::simulateTimestep(float timeStep)
 		f_tmp[spring->masspoint1] += f_tmp_spring - dampingForce(f_tmp_spring, massPoint1->Velocity);
 		f_tmp[spring->masspoint2] += -f_tmp_spring - dampingForce(-1 * f_tmp_spring, massPoint2->Velocity);
 	}*/
-	for (int i = 0; i< m_spheres.size()-1; ++i)
+	if (m_iAccelerator == NAIVEACC)
 	{
-		for (int j = i + 1; j < m_spheres.size(); j++)
+		for (int i = 0; i< m_spheres.size() - 1; ++i)
 		{
-			Vec3 distance = m_spheres[i]->Position - m_spheres[j]->Position;
-			if (length(distance) < m_fRadius * 2)
+			for (int j = i + 1; j < m_spheres.size(); j++)
 			{
-				Vec3 force = m_fLambda * m_Kernels[2](length(distance)) * distance / length(distance);
-				f_tmp[i] += force;
-				f_tmp[j] -= force;
+				Vec3 distance = m_spheres[i]->Position - m_spheres[j]->Position;
+				if (length(distance) < m_fRadius * 2)
+				{
+					Vec3 force = m_fLambda * m_Kernels[m_iKernel](length(distance)) * distance / length(distance);
+					f_tmp[i] += force;
+					f_tmp[j] -= force;
 
-				f_tmp[i] -= dampingForce(force, m_spheres[i]->Velocity);
-				f_tmp[j] -= dampingForce(-1 * force, m_spheres[j]->Velocity);
+					f_tmp[i] -= dampingForce(force, m_spheres[i]->Velocity);
+					f_tmp[j] -= dampingForce(-1 * force, m_spheres[j]->Velocity);
+				}
+			}
+		}
+	}
+	else if (m_iAccelerator == GRIDACC)
+	{
+
+		cout << "START" << endl;
+		vector<int> processedCells;
+
+		for (int i = 0; i < m_grid.size(); ++i)
+		{
+			if (!VectorContains(processedCells, i))
+			{
+				processedCells.push_back(i);
+
+				if (m_grid[i].size() > 0)
+				{
+					//test all spheres in current cell
+					if (m_grid[i].size() > 1)
+					{
+						for (int j = 0; j < m_grid[i].size() - 1; ++j)
+						{
+							for (int k = j + 1; k < m_grid[i].size(); ++k)
+							{
+								Vec3 distance = m_spheres[j]->Position - m_spheres[k]->Position;
+								if (length(distance) < m_fRadius * 2)
+								{
+									Vec3 force = m_fLambda * m_Kernels[m_iKernel](length(distance)) * distance / length(distance);
+									f_tmp[j] += force;
+									f_tmp[k] -= force;
+
+									f_tmp[j] -= dampingForce(force, m_spheres[j]->Velocity);
+									f_tmp[k] -= dampingForce(-1 * force, m_spheres[k]->Velocity);
+								}
+							}
+						}
+					}
+
+					//Test against all adjacent cells
+					for each(int adjCell in m_adjacentCells[i])
+					{
+						if (!VectorContains(processedCells, adjCell))
+						{
+							if (!m_grid[adjCell].empty())
+							{
+								for (int j = 0; j < m_grid[i].size(); ++i)
+								{
+									for (int k = 0; k < m_grid[adjCell].size(); ++k)
+									{
+										Vec3 distance = m_spheres[j]->Position - m_spheres[k]->Position;
+										if (length(distance) < m_fRadius * 2)
+										{
+											Vec3 force = m_fLambda * m_Kernels[m_iKernel](length(distance)) * distance / length(distance);
+											f_tmp[j] += force;
+											f_tmp[k] -= force;
+
+											f_tmp[j] -= dampingForce(force, m_spheres[j]->Velocity);
+											f_tmp[k] -= dampingForce(-1 * force, m_spheres[k]->Velocity);
+										}
+									}
+								}
+							}
+						}
+					}
+				}
 			}
 		}
 
+		cout << "END" << endl;
 	}
 
 
@@ -204,9 +364,9 @@ void SphereSystemSimulator::simulateTimestep(float timeStep)
 	}
 
 
+	cout << "END2" << endl;
 	
 		//Collision calculation
-		//i.e. make sure, that all MassPoints stay inside the cube
 		for each(Sphere* mp in m_spheres)
 		{
 			//mp->Position.makeCeil(-0.5);
@@ -226,10 +386,9 @@ void SphereSystemSimulator::simulateTimestep(float timeStep)
 					mp->Position.value[i] = 0.5 - m_fRadius;
 				}
 			}
+		}	
 
-		
-	}
-
+		cout << "END3" << endl;
 
 }
 

@@ -29,6 +29,7 @@ public:
 	void onClick(int x, int y);
 	void onMouse(int x, int y);
 
+	int PositionToCell(Vec3 Position);
 
 	Vec3 dampingForce(Vec3 springForce, Vec3 velocity);
 	
@@ -50,6 +51,9 @@ protected:
 	
 	int   m_iAccelerator; // switch between NAIVEACC and GRIDACC, (optionally, KDTREEACC, 2)
 	
+	vector<vector<int>> m_grid;
+	vector<vector<int>> m_adjacentCells;
+
 	SphereSystem* m_pSphereSystem; // add your own sphere system member!
 	SphereSystem* m_SphereSystem2;
 	// for Demo 3 only:
