@@ -32,6 +32,14 @@ void SphereSystemSimulator::initUI(DrawingUtilitiesClass * DUC)
 {
 	this->DUC = DUC;
 
+	if (m_iTestCase == 3)
+	{
+		//Define Enum for Accelerator Selector
+		TwType TW_TYPE_ACCELERATOR = TwDefineEnumFromString("Accelerator", "Naive, Grid");
+
+		TwAddVarRW(DUC->g_pTweakBar, "Accelerator", TW_TYPE_ACCELERATOR, &m_iAccelerator, "");
+	}
+
 	TwAddVarRW(DUC->g_pTweakBar, "Mass", TW_TYPE_FLOAT, &m_fMass, "step=0.01 min=0.01");  //User input
 	TwAddVarRW(DUC->g_pTweakBar, "Radius", TW_TYPE_FLOAT, &m_fRadius, "step=0.01 min=0.01");
 	TwAddVarRW(DUC->g_pTweakBar, "Lamda", TW_TYPE_FLOAT, &m_fLambda, "step=0.01 min=0.01");
@@ -202,6 +210,40 @@ void SphereSystemSimulator::notifyCaseChanged(int testCase)
 		break;
 
 	case 3:
+		cout << "Speed comparison of both collision detections!\n";
+
+		numCellsPerRow = 1 / (2 * m_fRadius);
+
+		m_grid.resize(pow(numCellsPerRow, 3));
+
+		for each(vector<int> cell in m_grid)
+		{
+			cell.clear();
+		}
+
+		m_adjacentCells.resize(m_grid.size());
+
+		//Calculate adjacent cells
+		for (int i = 0; i < m_grid.size() - 1; ++i)
+		{
+			int iX = i % numCellsPerRow;
+			int iZ = (i / numCellsPerRow) % numCellsPerRow;
+			int iY = i / (numCellsPerRow * numCellsPerRow);
+
+			for (int j = i + 1; j < m_grid.size(); ++j)
+			{
+				int jX = j % numCellsPerRow;
+				int jZ = (j / numCellsPerRow) % numCellsPerRow;
+				int jY = j / (numCellsPerRow * numCellsPerRow);
+
+				if (abs(iX - jX) <= 1 && abs(iY - jY) <= 1 && abs(iZ - jZ) <= 1)
+				{
+					m_adjacentCells[i].push_back(j);
+					//m_adjacentCells[j].push_back(i);
+				}
+			}
+		}
+
 		break;
 	default:
 		cout << "Empty Test!\n";
@@ -271,7 +313,7 @@ void SphereSystemSimulator::simulateTimestep(float timeStep)
 
 	externalForcesCalculations(timeStep);
 
-	if (m_iTestCase == 0 || m_iTestCase == 1)
+	if (m_iTestCase == 0 || m_iTestCase == 1 || m_iTestCase == 3)
 	{
 		if (m_iAccelerator == GRIDACC)
 		{
@@ -664,9 +706,7 @@ void SphereSystemSimulator::simulateTimestep(float timeStep)
 					}
 				}
 			}
-
 		}
-
 	}
 }
 

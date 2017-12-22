@@ -15,6 +15,8 @@
 #include "util/util.h"
 #include "util/FFmpeg.h"
 
+#include "util/timer.h"
+
 using namespace DirectX;
 using namespace GamePhysics;
 
@@ -49,6 +51,10 @@ int g_iTestCase = 0;
 int g_iPreTestCase = -1;
 bool  g_bSimulateByStep = false;
 bool firstTime = true;
+
+bool g_bStartMeasurement = false;
+
+MuTime myTimer;
 // Video recorder
 FFmpeg* g_pFFmpegVideoRecorder = nullptr;
 
@@ -65,6 +71,13 @@ void initTweakBar(){
 	TwAddVarRW(g_pDUC->g_pTweakBar, "RunStep", TW_TYPE_BOOLCPP, &g_bSimulateByStep, "");
 	TwAddVarRW(g_pDUC->g_pTweakBar, "Draw MSS",  TW_TYPE_BOOLCPP, &g_bDraw, "");
 	TwAddVarRW(g_pDUC->g_pTweakBar, "Timestep", TW_TYPE_FLOAT, &g_fTimestep, "step=0.0001 min=0.0001");
+
+	if (g_iTestCase == 3)
+	{
+		TwAddVarRW(g_pDUC->g_pTweakBar, "Start Measurement", TW_TYPE_BOOLCPP, &g_bStartMeasurement, "");
+	}
+
+
 #ifdef ADAPTIVESTEP
 	TwAddVarRW(g_pDUC->g_pTweakBar, "Time Factor", TW_TYPE_FLOAT, &g_fTimeFactor, "step=0.01   min=0.01");
 #endif
@@ -269,7 +282,32 @@ void CALLBACK OnFrameMove( double dTime, float fElapsedTime, void* pUserContext 
 		}
 #else
 		g_pSimulator->externalForcesCalculations(g_fTimestep);
-		g_pSimulator->simulateTimestep(g_fTimestep);
+
+		if (g_iTestCase == 3)
+		{
+			if (g_bStartMeasurement)
+			{
+				g_bStartMeasurement = false;
+				g_pSimulator->notifyCaseChanged(g_iTestCase);
+
+				std::cout << "Simulating 100 timesteps" << std::endl;
+
+
+				myTimer.get();
+
+				for (int i = 0; i < 100; ++i)
+				{
+					g_pSimulator->simulateTimestep(g_fTimestep);
+				}
+				
+				std::cout << "Time passed " << myTimer.update().time << " milliseconds\n";
+
+			}
+		}
+		else
+		{
+			g_pSimulator->simulateTimestep(g_fTimestep);
+		}
 #endif
 	}else{
 		if(DXUTIsKeyDown(VK_SPACE))
