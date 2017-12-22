@@ -52,6 +52,8 @@ void SphereSystemSimulator::reset()
 
 	m_spheres.clear();
 	m_spheres2.clear();
+	m_occupiedCells.clear();
+	m_adjacentCells.clear();
 
 	m_grid.clear();
 }
