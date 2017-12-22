@@ -225,14 +225,21 @@ void SphereSystemSimulator::simulateTimestep(float timeStep)
 			m_grid[i].clear();
 		}
 
+		m_occupiedCells.clear();
+
 		//Store balls in cells
 		for(int i = 0; i < m_iNumSpheres; ++i)
 		{
 			Sphere* sphere = m_spheres[i];
 
-			m_grid[PositionToCell(m_spheres[i]->Position)].push_back(i);
+			int gridPos = PositionToCell(m_spheres[i]->Position);
+			m_grid[gridPos].push_back(i);
+
+			if (m_grid[gridPos].size() == 1)
+				m_occupiedCells.push_back(gridPos);
 		}
 
+		std::sort(m_occupiedCells.begin(), m_occupiedCells.end());
 	}
 
 	// Midpoint position integration based on last position and velocity
@@ -274,26 +281,27 @@ void SphereSystemSimulator::simulateTimestep(float timeStep)
 	}
 	else if (m_iAccelerator == GRIDACC)
 	{
-
 		vector<int> processedCells;
 
-		for (int i = 0; i < m_grid.size(); ++i)
+		for (int i = 0; i < m_occupiedCells.size(); ++i)
 		{
-			if (!VectorContains(processedCells, i))
-			{
-				processedCells.push_back(i);
+			int iID = m_occupiedCells[i];
 
-				if (m_grid[i].size() > 0)
+			if (!VectorContains(processedCells, iID))
+			{
+				processedCells.push_back(iID);
+
+				if (m_grid[iID].size() > 0)
 				{
 					//test all spheres in current cell
-					if (m_grid[i].size() > 1)
+					if (m_grid[iID].size() > 1)
 					{
-						for (int j = 0; j < m_grid[i].size() - 1; ++j)
+						for (int j = 0; j < m_grid[iID].size() - 1; ++j)
 						{
-							int jID = m_grid[i][j];
-							for (int k = j + 1; k < m_grid[i].size(); ++k)
+							int jID = m_grid[iID][j];
+							for (int k = j + 1; k < m_grid[iID].size(); ++k)
 							{
-								int kID = m_grid[i][k];
+								int kID = m_grid[iID][k];
 								Vec3 distance = m_spheres[jID]->Position - m_spheres[kID]->Position;
 								if (length(distance) < m_fRadius * 2)
 								{
@@ -309,15 +317,15 @@ void SphereSystemSimulator::simulateTimestep(float timeStep)
 					}
 
 					//Test against all adjacent cells
-					for each(int adjCell in m_adjacentCells[i])
+					for each(int adjCell in m_adjacentCells[iID])
 					{
 						if (!VectorContains(processedCells, adjCell))
 						{
 							if (!m_grid[adjCell].empty())
 							{
-								for (int j = 0; j < m_grid[i].size(); ++j)
+								for (int j = 0; j < m_grid[iID].size(); ++j)
 								{
-									int jID = m_grid[i][j];
+									int jID = m_grid[iID][j];
 									for (int k = 0; k < m_grid[adjCell].size(); ++k)
 									{
 										int kID = m_grid[adjCell][k];
