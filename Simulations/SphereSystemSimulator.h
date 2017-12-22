@@ -50,7 +50,9 @@ protected:
 	static std::function<float(float)> m_Kernels[5];
 	
 	int   m_iAccelerator; // switch between NAIVEACC and GRIDACC, (optionally, KDTREEACC, 2)
-	
+
+	vector<Sphere*> m_spheres2;
+
 	vector<vector<int>> m_grid;
 	vector<int> m_occupiedCells;
 	vector<vector<int>> m_adjacentCells;
