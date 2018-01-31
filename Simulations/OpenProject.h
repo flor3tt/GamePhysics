@@ -6,8 +6,7 @@
 
 // Do Not Change
 #define EULER 0
-#define LEAPFROG 1
-#define MIDPOINT 2
+#define MIDPOINT 1
 // Do Not Change
 
 
@@ -16,10 +15,27 @@ class OpenProject :public Simulator {
 
 	struct MassPoint
 	{
+		int rigidBody;
 		Vec3 Position;
-		Vec3 Velocity;
-		bool isFixed;
+	};
+
+	struct RigidBody
+	{
+		float Mass;
+		Vec3 Size;
+		Mat4 InvInertiaRaw;
+		Mat4 InvInertiaNow;
+
+		Vec3 Position;
+		Vec3 VelocityLin;
+		Vec3 VelocityAng;
+		Vec3 Momentum;
+		Quat Orientation;
+
 		Vec3 Force;
+		Vec3 Torque;
+
+		bool isFixed;
 	};
 
 	struct Spring
@@ -48,23 +64,24 @@ public:
 	void setStiffness(float stiffness);
 	void setDampingFactor(float damping);
 	void setBounciness(float bouncyness);
-	int addMassPoint(Vec3 position, Vec3 Velocity, bool isFixed);
+	int addMassPoint(int rigisBodyID, Vec3 position);
 	void addSpring(int masspoint1, int masspoint2, float initialLength);
-	int getNumberOfMassPoints();
-	int getNumberOfSprings();
-	Vec3 getPositionOfMassPoint(int index);
-	Vec3 getVelocityOfMassPoint(int index);
-	void applyExternalForce(Vec3 force);
+	void addRigidBody(Vec3 position, Vec3 size, int mass, bool isFixed = false);
+	void applyForceOnBody(int i, Vec3 loc, Vec3 force);
+	void applyForceOnBodyLocal(int i, Vec3 loc, Vec3 force);
 
 	Vec3 springForce(Vec3 position1, Vec3 position2, float initialLength);
 	Vec3 dampingForce(Vec3 springForce, Vec3 velocity);
+
+	Vec3 worldPos(int rigidBody, Vec3 Position);
+	Vec3 worldVel(int rigidBody, Vec3 Position);
+	
+
 	void simulateTimestepEuler(float timeElapsed);
 	void simulateTimestepMidpoint(float timeElapsed);
-	void simulateTimestepLeapfrog(float timeElapsed);
 
 	//Specific Case Functions
-	void drawSimpleSetup();
-	void drawComplexSetup();
+	void drawProject();
 
 	// Do Not Change
 	void setIntegrator(int integrator) {
@@ -89,7 +106,8 @@ private:
 	void updateElapsedTime();
 
 	//MassPoint and Spring Management
-	vector<MassPoint*> m_spheres;
+	vector<MassPoint*> m_masspoints;
+	vector<RigidBody*> m_rigidBodies;
 	vector<Spring*> m_springs;
 
 	// UI Attributes

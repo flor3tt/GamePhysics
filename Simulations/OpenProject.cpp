@@ -3,12 +3,11 @@
 
 OpenProject::OpenProject()
 {
-	m_iTestCase = 1;
+	m_iTestCase = 0;
 	m_iIntegrator = 0;
 	m_fDamping = 0;
 	m_fGravity = 0;
 	m_fStiffness = 40;
-	m_fMass = 10;
 
 	m_bRealTimeSimulation = false;
 	m_fSimulationSpeedFactor = 1;
@@ -17,7 +16,7 @@ OpenProject::OpenProject()
 
 const char * OpenProject::getTestCasesStr()
 {
-	return "1_Step, Simple_Setup, Complex_Setup";
+	return "OpenProject";
 }
 
 void OpenProject::initUI(DrawingUtilitiesClass * DUC)
@@ -25,30 +24,15 @@ void OpenProject::initUI(DrawingUtilitiesClass * DUC)
 	this->DUC = DUC;
 
 	//Define Enum for Integrator Selector
-	TwType TW_TYPE_INTEGRATOR = TwDefineEnumFromString("Integrator", "Euler, Leap-Frog, Midpoint");
+	TwType TW_TYPE_INTEGRATOR = TwDefineEnumFromString("Integrator", "Euler, Midpoint");
+	TwAddVarRW(DUC->g_pTweakBar, "Integrator", TW_TYPE_INTEGRATOR, &m_iIntegrator, "");
 
-	switch (m_iTestCase)
-	{
-	case 0:break;
-	case 1:
-		//TwAddVarRW(DUC->g_pTweakBar, "Num Spheres", TW_TYPE_INT32, &m_iNumSpheres, "min=1");
-		//TwAddVarRW(DUC->g_pTweakBar, "Sphere Size", TW_TYPE_FLOAT, &m_fSphereSize, "min=0.01 step=0.01");
-		TwAddVarRW(DUC->g_pTweakBar, "Integrator", TW_TYPE_INTEGRATOR, &m_iIntegrator, "");
-		break;
-	case 2:
-		TwAddVarRW(DUC->g_pTweakBar, "Integrator", TW_TYPE_INTEGRATOR, &m_iIntegrator, "");
-		TwAddVarRW(DUC->g_pTweakBar, "Mass", TW_TYPE_FLOAT, &m_fMass, "step=0.01 min=0.01");
-		TwAddVarRW(DUC->g_pTweakBar, "Stiffness", TW_TYPE_FLOAT, &m_fStiffness, "step=0.5 min=0.5");
-		TwAddVarRW(DUC->g_pTweakBar, "Damping", TW_TYPE_FLOAT, &m_fDamping, "step=0.01 min=0");
-		TwAddVarRW(DUC->g_pTweakBar, "Gravity", TW_TYPE_FLOAT, &m_fGravity, "step=0.01");
-		TwAddVarRW(DUC->g_pTweakBar, "Bouncyness", TW_TYPE_FLOAT, &m_fBouncyness, "step=0.01, min=0");
-		TwAddVarRW(DUC->g_pTweakBar, "Integrator", TW_TYPE_INTEGRATOR, &m_iIntegrator, "");
-		TwAddVarRW(DUC->g_pTweakBar, "Real Time", TW_TYPE_BOOLCPP, &m_bRealTimeSimulation, "");
-		TwAddVarRW(DUC->g_pTweakBar, "Time Factor", TW_TYPE_FLOAT, &m_fSimulationSpeedFactor, "step=0.01 min=0.01");
-		break;
-	default:
-		break;
-	}
+	TwAddVarRW(DUC->g_pTweakBar, "Stiffness", TW_TYPE_FLOAT, &m_fStiffness, "step=0.5 min=0.5");
+	TwAddVarRW(DUC->g_pTweakBar, "Damping", TW_TYPE_FLOAT, &m_fDamping, "step=0.01 min=0");
+	TwAddVarRW(DUC->g_pTweakBar, "Gravity", TW_TYPE_FLOAT, &m_fGravity, "step=0.01");
+	TwAddVarRW(DUC->g_pTweakBar, "Real Time", TW_TYPE_BOOLCPP, &m_bRealTimeSimulation, "");
+	TwAddVarRW(DUC->g_pTweakBar, "Time Factor", TW_TYPE_FLOAT, &m_fSimulationSpeedFactor, "step=0.01 min=0.01");
+
 }
 
 void OpenProject::reset()
@@ -57,18 +41,14 @@ void OpenProject::reset()
 	m_trackmouse.x = m_trackmouse.y = 0;
 	m_oldtrackmouse.x = m_oldtrackmouse.y = 0;
 
-	m_spheres.clear();
+	m_masspoints.clear();
 	m_springs.clear();
+	m_rigidBodies.clear();
 }
 
 void OpenProject::drawFrame(ID3D11DeviceContext * pd3dImmediateContext)
 {
-	switch (m_iTestCase)
-	{
-	case 0: drawSimpleSetup(); break;
-	case 1: drawSimpleSetup(); break;
-	case 2: drawComplexSetup(); break;
-	}
+	drawProject();
 }
 
 void OpenProject::notifyCaseChanged(int testCase)
@@ -80,125 +60,25 @@ void OpenProject::notifyCaseChanged(int testCase)
 	switch (m_iTestCase)
 	{
 	case 0:
-		cout << "One Step Simulation !\n";
+		cout << "Open Project !\n";
 
-		//Add Simple Setup
-		m_fGravity = 0;
-		m_fMass = 10;
-		m_fStiffness = 40;
-		m_fDamping = 0;
-		m_fBouncyness = 0;
-		m_bRealTimeSimulation = false;
-
-		//EULER
-		addMassPoint(Vec3(0, 0, 0), Vec3(-1, 0, 0), false);
-		addMassPoint(Vec3(0, 2, 0), Vec3(1, 0, 0), false);
-		addSpring(0, 1, 1);
-		m_iIntegrator = EULER;
-
-		simulateTimestepEuler(0.1f);
-
-		//Print Results
-		cout << "After an Euler Step:" << endl;
-		for (int i = 0; i < getNumberOfMassPoints(); ++i)
-		{
-			cout << "points " << i << " vel " << m_spheres[i]->Velocity.toString() << ", pos " << m_spheres[i]->Position.toString() << endl;
-		}
-
-		reset();
-
-		//MIDPOINT
-		addMassPoint(Vec3(0, 0, 0), Vec3(-1, 0, 0), false);
-		addMassPoint(Vec3(0, 2, 0), Vec3(1, 0, 0), false);
-		addSpring(0, 1, 1);
-		m_iIntegrator = MIDPOINT;
-
-		simulateTimestepMidpoint(0.1f);
-
-		//Print Results
-		cout << "After a Midpoint Step:" << endl;
-		for (int i = 0; i < getNumberOfMassPoints(); ++i)
-		{
-			cout << "points " << i << " vel " << m_spheres[i]->Velocity.toString() << ", pos " << m_spheres[i]->Position.toString() << endl;
-		}
-
-		break;
-	case 1:
-		cout << "Simple Scene Setup Simulation !\n";
-
-		m_fGravity = 0;
-		m_fMass = 10;
-		m_fStiffness = 40;
-		m_fDamping = 0;
-		m_fBouncyness = 0;
-		m_bRealTimeSimulation = false;
-		m_iIntegrator = EULER;
-
-
-		addMassPoint(Vec3(0, 0, 0), Vec3(-1, 0, 0), false);
-		addMassPoint(Vec3(0, 2, 0), Vec3(1, 0, 0), false);
-		addSpring(0, 1, 1);
-
-
-		break;
-	case 2:
-		cout << "Complex Scene Setup Simulation !\n";
-
-		m_fGravity = -9.81;
-		m_fMass = 0.01;
-		m_fStiffness = 25;
 		m_fDamping = 0.01;
-		m_fBouncyness = 0.5;
+		m_fGravity = -9.81;
+		m_fStiffness = 40;
+
 		m_iIntegrator = MIDPOINT;
 
-		/**
-		addMassPoint(Vec3(0, 0.5, 0), Vec3(0, 0, 0), true);
-		addMassPoint(Vec3(0, 0, 0), Vec3(0, 0, 0), false);
-		addSpring(0, 1, 0.3);
-		*/
+		addRigidBody(Vec3(0.5, 0.5, 0), Vec3(0.001, 0.001, 0.001), 0, true);
+		addRigidBody(Vec3(-0.5, 0.5, 0), Vec3(0.001, 0.001, 0.001), 0, true);
+		addRigidBody(Vec3(0, 0, 0), Vec3(0.2, 0.1, 0.2), 2);
+		
+		addMassPoint(0, Vec3(0, 0, 0));
+		addMassPoint(1, Vec3(0, 0, 0));
+		addMassPoint(2, Vec3(0.1, 0.05, 0.1));
+		addMassPoint(2, Vec3(-0.1, 0.05, -0.1));
+		addSpring(0, 2, 0.2);
+		addSpring(1, 3, 0.2);
 
-
-		//Hängen von der Decke
-		addMassPoint(Vec3(0, 0.5, 0), Vec3(0, 0, 0), true);//0
-		addMassPoint(Vec3(0, 0.3, 0), Vec3(0, 0, 0), false);
-		addMassPoint(Vec3(0.1, 0.2, 0.1), Vec3(0, 0, 0), false);
-		addMassPoint(Vec3(0.1, 0.2, -0.1), Vec3(0, 0, 0), false);
-		addMassPoint(Vec3(-0.1, 0.2, 0.1), Vec3(0, 0, 0), false);
-		addSpring(0, 1, 0.2);
-		addSpring(1, 2, 0.15);
-		addSpring(1, 3, 0.15);
-		addSpring(1, 4, 0.15);
-		addSpring(2, 3, 0.15);
-		addSpring(2, 4, 0.15);
-		addSpring(3, 4, 0.15);
-
-		//Teil frei im Raum
-		addMassPoint(Vec3(-0.1, -0.5, -0.1), Vec3(0, 0, 0), false);//5
-		addMassPoint(Vec3(-0.1, -0.5, 0.1), Vec3(0, 0, 0), false);
-		addMassPoint(Vec3(0.1, -0.5, 0.1), Vec3(0, 0, 0), false);
-		addMassPoint(Vec3(0.1, -0.5, -0.1), Vec3(0, 0, 0), false);
-		addMassPoint(Vec3(-0.1, -0.3, -0.1), Vec3(0, 0, 0), false);
-		addMassPoint(Vec3(-0.1, -0.3, 0.1), Vec3(0, 0, 0), false);
-		addMassPoint(Vec3(0.1, -0.3, 0.1), Vec3(0, 0, 0), false);
-		addMassPoint(Vec3(0.1, -0.3, -0.1), Vec3(0, 0, 0), false);//12
-
-		addSpring(5, 6, 0.2);
-		addSpring(5, 8, 0.2);
-		addSpring(5, 9, 0.2);
-		addSpring(6, 7, 0.2);
-		addSpring(6, 10, 0.2);
-		addSpring(7, 8, 0.2);
-		addSpring(7, 11, 0.2);
-		addSpring(8, 12, 0.2);
-		addSpring(9, 10, 0.2);
-		addSpring(9, 12, 0.2);
-		addSpring(10, 11, 0.2);
-		addSpring(11, 12, 0.2);
-
-		addSpring(5, 11, 0.4);
-		addSpring(6, 12, 0.4);
-		addSpring(7, 9, 0.4);
-		addSpring(8, 10, 0.4);
 
 
 		break;
@@ -221,7 +101,7 @@ void OpenProject::externalForcesCalculations(float timeElapsed)
 		Vec3 inputView = Vec3((float)mouseDiff.x, (float)-mouseDiff.y, 0);
 		Vec3 inputWorld = worldViewInv.transformVectorNormal(inputView);
 		// find a proper scale!
-		float inputScale = 0.001f;
+		float inputScale = 0.1f;
 		inputWorld = inputWorld * inputScale;
 		//m_vfMovableObjectPos = m_vfMovableObjectFinalPos + inputWorld;
 		m_externalForce = inputWorld;
@@ -232,7 +112,7 @@ void OpenProject::externalForcesCalculations(float timeElapsed)
 	}
 
 	//Add Gravity
-	m_externalForce.y += m_fMass * m_fGravity;
+	//m_externalForce.y += m_fMass * m_fGravity;
 
 }
 
@@ -242,55 +122,36 @@ void OpenProject::simulateTimestep(float timeStep)
 	if (m_bRealTimeSimulation) {
 		timeStep = m_fElapsedRealTime;
 	}
-
-	if (m_iTestCase == 0)
-		return;
-
-	//Different Simulation dependent on Integrator
-	switch (m_iIntegrator)
-	{
-	case EULER:
-		//Simulate with Euler Integration
+	
+	if(m_iIntegrator == EULER)
 		simulateTimestepEuler(timeStep);
-		break;
-	case LEAPFROG:
-		//Simulate with Leap-Frog Integration
-		simulateTimestepLeapfrog(timeStep);
-		break;
-	case MIDPOINT:
-		//Simulate with Midpoint Integration
+	if (m_iIntegrator == MIDPOINT)
 		simulateTimestepMidpoint(timeStep);
-		break;
-	default:
-		cout << "Invalid Integrator selected!" << endl;
-		break;
-	}
-
 	if (m_iTestCase == 2)
 	{
 		//Collision calculation
 		//i.e. make sure, that all MassPoints stay inside the cube
-		for each(MassPoint* mp in m_spheres)
-		{
-			//mp->Position.makeCeil(-0.5);
-			//mp->Position.makeFloor(0.5);
-			for (int i = 0; i < 3; ++i)
-			{
-				float j = mp->Position.value[i];
+		//for each(MassPoint* mp in m_masspoints)
+		//{
+		//	//mp->Position.makeCeil(-0.5);
+		//	//mp->Position.makeFloor(0.5);
+		//	for (int i = 0; i < 3; ++i)
+		//	{
+		//		float j = mp->Position.value[i];
 
-				if (j <= -0.5)
-				{
-					mp->Velocity.value[i] = m_fBouncyness * mp->Velocity.getAbsolutes().value[i];
-					mp->Position.value[i] = -0.5;
-				}
-				else if (j >= 0.5)
-				{
-					mp->Velocity.value[i] = -1 * m_fBouncyness * mp->Velocity.getAbsolutes().value[i];
-					mp->Position.value[i] = 0.5;
-				}
-			}
+		//		if (j <= -0.5)
+		//		{
+		//			mp->Velocity.value[i] = m_fBouncyness * mp->Velocity.getAbsolutes().value[i];
+		//			mp->Position.value[i] = -0.5;
+		//		}
+		//		else if (j >= 0.5)
+		//		{
+		//			mp->Velocity.value[i] = -1 * m_fBouncyness * mp->Velocity.getAbsolutes().value[i];
+		//			mp->Position.value[i] = 0.5;
+		//		}
+		//	}
 
-		}
+		//}
 	}
 
 
@@ -312,110 +173,202 @@ Vec3 OpenProject::dampingForce(Vec3 springForce, Vec3 velocity)
 	return m_fDamping * force_unit * (velocity.x * force_unit.x + velocity.y * force_unit.y + velocity.z * force_unit.z);
 }
 
-void OpenProject::simulateTimestepEuler(float timeStep)
+Vec3 OpenProject::worldPos(int rigidBody, Vec3 Position)
 {
-	for each(MassPoint* mp in m_spheres)
-	{
-		//Reset Force
-		mp->Force = 0;
-	}
+	return m_rigidBodies[rigidBody]->Position + m_rigidBodies[rigidBody]->Orientation.getRotMat().transformVector(Position);
+	
+}
 
-	//Applay external forces, i.e. User Input + Gravity
-	externalForcesCalculations(timeStep);
-	applyExternalForce(m_externalForce);
-
-	//Calculate Spring Forces
-	for each(Spring* sp in m_springs)
-	{
-		Vec3 distance = m_spheres[sp->masspoint1]->Position - m_spheres[sp->masspoint2]->Position;
-
-		float length = sqrt(pow(distance.x, 2) + pow(distance.y, 2) + pow(distance.z, 2));
-		if (length == 0)
-		{
-			m_spheres[sp->masspoint2]->Position += Vec3(0, -0.001, 0);
-
-			distance = m_spheres[sp->masspoint1]->Position - m_spheres[sp->masspoint2]->Position;
-			length = sqrt(pow(distance.x, 2) + pow(distance.y, 2) + pow(distance.z, 2));
-		}
-		Vec3 force = -1 * m_fStiffness * (length - sp->initialLength) * distance / length;
-
-		m_spheres[sp->masspoint1]->Force += force - dampingForce(force, m_spheres[sp->masspoint1]->Velocity);
-		m_spheres[sp->masspoint2]->Force -= force - dampingForce(-1 * force, m_spheres[sp->masspoint2]->Velocity);
-	}
-
-	//Caculate new Positions
-	for each(MassPoint* mp in m_spheres)
-	{
-		if (mp->isFixed)
-			continue;
-
-		//Integrate Position
-		mp->Position += timeStep * mp->Velocity;
-	}
-
-	//Caculate new Velocities
-	for each(MassPoint* mp in m_spheres)
-	{
-		mp->Velocity += timeStep * (mp->Force / m_fMass);
-	}
+Vec3 OpenProject::worldVel(int rigidBody, Vec3 Position)
+{
+	return m_rigidBodies[rigidBody]->VelocityLin + cross(m_rigidBodies[rigidBody]->VelocityAng, Position);
 }
 
 void OpenProject::simulateTimestepMidpoint(float timeStep)
 {
+
 	externalForcesCalculations(timeStep);
 
 	// Midpoint position integration based on last position and velocity
 	vector<Vec3> pos_tmp;
-	for each(MassPoint* massPoint in m_spheres) {
-		pos_tmp.push_back(massPoint->Position + (timeStep / 2) * massPoint->Velocity);
+	for each(MassPoint* massPoint in m_masspoints) {
+		pos_tmp.push_back(worldPos(massPoint->rigidBody, massPoint->Position) + (timeStep / 2) * worldVel(massPoint->rigidBody, massPoint->Position));
 	}
 
 	// Calculate midpoint spring forces using the updated pos_tmp
 	vector<Vec3> f_tmp;
-	f_tmp.resize(m_spheres.size());
+	f_tmp.resize(m_masspoints.size());
 	for each(Spring* spring in m_springs) {
-		MassPoint* massPoint1 = m_spheres[spring->masspoint1];
-		MassPoint* massPoint2 = m_spheres[spring->masspoint2];
+		MassPoint* massPoint1 = m_masspoints[spring->masspoint1];
+		MassPoint* massPoint2 = m_masspoints[spring->masspoint2];
 		Vec3 f_tmp_spring = springForce(pos_tmp[spring->masspoint1], pos_tmp[spring->masspoint2], spring->initialLength);
 
-		f_tmp[spring->masspoint1] += f_tmp_spring - dampingForce(f_tmp_spring, massPoint1->Velocity);
-		f_tmp[spring->masspoint2] += -f_tmp_spring - dampingForce(-1 * f_tmp_spring, massPoint2->Velocity);
+		f_tmp[spring->masspoint1] += f_tmp_spring - dampingForce(f_tmp_spring, worldVel(massPoint1->rigidBody, massPoint1->Position));
+		f_tmp[spring->masspoint2] += -f_tmp_spring - dampingForce(-1 * f_tmp_spring, worldVel(massPoint2->rigidBody, massPoint2->Position));
 	}
 
-	// Integrate velocity using midpoint spring forces and these new values to integrate the position
+	// Integrate velocity using midpoint spring forces
 	vector<Vec3> v_tmp;
 	unsigned int i;
-	for (i = 0; i < m_spheres.size(); i++) {
-		MassPoint* massPoint = m_spheres[i];
-		v_tmp.push_back(massPoint->Velocity + (timeStep / 2) * (f_tmp[i] / m_fMass));
-		if (massPoint->isFixed)
-			continue;
-		massPoint->Position += timeStep * v_tmp[i];
+	for (i = 0; i < m_masspoints.size(); i++)
+	{
+		MassPoint* massPoint = m_masspoints[i];
+		v_tmp.push_back(worldVel(massPoint->rigidBody, massPoint->Position) + (timeStep / 2) * (f_tmp[i] / m_rigidBodies[massPoint->rigidBody]->Mass));
+
 	}
 
 	// Again, calculate spring forces
 	vector<Vec3> f_estimate;
-	f_estimate.resize(m_spheres.size());
+	f_estimate.resize(m_masspoints.size());
 	for each(Spring* spring in m_springs) {
 		Vec3 f_tmp_spring = springForce(pos_tmp[spring->masspoint1], pos_tmp[spring->masspoint2], spring->initialLength);
 		f_estimate[spring->masspoint1] += f_tmp_spring - dampingForce(f_tmp_spring, v_tmp[spring->masspoint1]);
 		f_estimate[spring->masspoint2] += -f_tmp_spring - dampingForce(-1 * f_tmp_spring, v_tmp[spring->masspoint2]);
 	}
 
-	// Integrate Velocity
-	for (i = 0; i < m_spheres.size(); i++) {
-		if (m_spheres[i]->isFixed)
-			continue;
-		m_spheres[i]->Velocity += timeStep * ((f_estimate[i] + m_externalForce) / m_fMass);
+	// Apply actual forces on rigidbodies
+	for (i = 0; i < m_masspoints.size(); i++)
+	{
+		if(!m_rigidBodies[m_masspoints[i]->rigidBody]->isFixed)
+			applyForceOnBodyLocal(m_masspoints[i]->rigidBody, m_masspoints[i]->Position, f_estimate[i]);
+
+	}
+
+	//Update Rigisbodies with full Euler Step
+	for each(RigidBody* rb in m_rigidBodies)
+	{
+		rb->Force += m_externalForce;
+		rb->Force.y += m_fGravity * rb->Mass;
+
+		//Euler Step
+		if (!rb->isFixed)
+		{
+			rb->Position += timeStep * rb->VelocityLin;
+			rb->VelocityLin += timeStep * (rb->Force / rb->Mass);
+		}
+
+		//Update Orientation
+		Quat newRot = rb->Orientation + (timeStep / 2) * Quat(rb->VelocityAng.x, rb->VelocityAng.y, rb->VelocityAng.z, 0) * rb->Orientation;
+		double norm = newRot.norm();
+
+		rb->Orientation = newRot;
+		rb->Orientation /= norm;
+
+		//cout << rb->Torque << endl;
+
+		//Update angular velocity and stuff
+		rb->Momentum += timeStep * rb->Torque;
+
+		Mat4 rotMat = rb->Orientation.getRotMat();
+		Mat4 rotMatTrans = rotMat;
+		rotMatTrans.transpose();
+		rb->InvInertiaNow = rotMat * rb->InvInertiaRaw * rotMatTrans;
+
+		if (!rb->isFixed)
+		{
+			rb->VelocityAng = rb->InvInertiaNow.transformVector(rb->Momentum);
+		}
+
+		//Clear Force and Torque
+		rb->Force = Vec3(0, 0, 0);
+		rb->Torque = Vec3(0, 0, 0);
+
 	}
 
 }
 
-
-
-void OpenProject::simulateTimestepLeapfrog(float timeStep)
+void OpenProject::simulateTimestepEuler(float timeStep)
 {
+	for each(MassPoint* mp in m_masspoints)
+	{
+		//Reset Force
+		//mp->Force = 0;
+	}
 
+	//Applay external forces, i.e. User Input + Gravity
+	externalForcesCalculations(timeStep);
+	//applyExternalForce(m_externalForce);
+
+	//Calculate Spring Forces
+	for each(Spring* sp in m_springs)
+	{
+		Vec3 pos1 = worldPos(m_masspoints[sp->masspoint1]->rigidBody, m_masspoints[sp->masspoint1]->Position);
+		Vec3 pos2 = worldPos(m_masspoints[sp->masspoint2]->rigidBody, m_masspoints[sp->masspoint2]->Position);
+
+		Vec3 distance = pos1 - pos2;
+
+		float length = sqrt(pow(distance.x, 2) + pow(distance.y, 2) + pow(distance.z, 2));
+		if (length == 0)
+		{
+			pos2 += Vec3(0, -0.001, 0);
+
+			distance = pos1 - pos2;
+			length = sqrt(pow(distance.x, 2) + pow(distance.y, 2) + pow(distance.z, 2));
+		}
+		Vec3 force = -1 * m_fStiffness * (length - sp->initialLength) * distance / length;
+
+		Vec3 force1 = force - dampingForce(force, worldVel(m_masspoints[sp->masspoint1]->rigidBody, m_masspoints[sp->masspoint1]->Position));
+		Vec3 force2 = force - force - dampingForce(-1 * force, worldVel(m_masspoints[sp->masspoint2]->rigidBody, m_masspoints[sp->masspoint2]->Position));
+		force2 *= -1;
+
+		applyForceOnBody(m_masspoints[sp->masspoint1]->rigidBody, m_masspoints[sp->masspoint1]->Position, force1);
+		applyForceOnBody(m_masspoints[sp->masspoint2]->rigidBody, m_masspoints[sp->masspoint2]->Position, force2);
+	}
+
+	for each(RigidBody* rb in m_rigidBodies)
+	{
+		rb->Force += m_externalForce;
+		rb->Force.y += m_fGravity * rb->Mass;
+
+		//Euler Step
+		if (!rb->isFixed)
+		{
+			rb->Position += timeStep * rb->VelocityLin;
+			rb->VelocityLin += timeStep * ((m_externalForce + rb->Force) / rb->Mass);
+		}
+
+		//Update Orientation
+		Quat newRot = rb->Orientation + (timeStep / 2) * Quat(rb->VelocityAng.x, rb->VelocityAng.y, rb->VelocityAng.z, 0) * rb->Orientation;
+		double norm = newRot.norm();
+
+		rb->Orientation = newRot;
+		rb->Orientation /= norm;
+
+		//Update angular velocity and stuff
+		rb->Momentum += timeStep * rb->Torque;
+
+		Mat4 rotMat = rb->Orientation.getRotMat();
+		Mat4 rotMatTrans = rotMat;
+		rotMatTrans.transpose();
+		rb->InvInertiaNow = rotMat * rb->InvInertiaRaw * rotMatTrans;
+
+		if (!rb->isFixed)
+		{
+			rb->VelocityAng = rb->InvInertiaNow.transformVector(rb->Momentum);
+		}
+
+		//Clear Force and Torque
+		rb->Force = Vec3(0, 0, 0);
+		rb->Torque = Vec3(0, 0, 0);
+
+	}
+
+
+	////Caculate new Positions
+	//for each(MassPoint* mp in m_masspoints)
+	//{
+	//	if (mp->isFixed)
+	//		continue;
+
+	//	//Integrate Position
+	//	mp->Position += timeStep * mp->Velocity;
+	//}
+
+	////Caculate new Velocities
+	//for each(MassPoint* mp in m_masspoints)
+	//{
+	//	mp->Velocity += timeStep * (mp->Force / m_fMass);
+	//}
 }
 
 void OpenProject::onClick(int x, int y)
@@ -452,17 +405,16 @@ void OpenProject::setBounciness(float bouncyness)
 	m_fBouncyness = bouncyness;
 }
 
-int OpenProject::addMassPoint(Vec3 position, Vec3 Velocity, bool isFixed)
+int OpenProject::addMassPoint(int rigidBodyID, Vec3 position)
 {
 	MassPoint* newPoint = new MassPoint;
 
 	newPoint->Position = position;
-	newPoint->Velocity = Velocity;
-	newPoint->isFixed = isFixed;
+	newPoint->rigidBody = rigidBodyID;
 
-	m_spheres.push_back(newPoint);
+	m_masspoints.push_back(newPoint);
 
-	return m_spheres.size() - 1;
+	return m_masspoints.size() - 1;
 }
 
 void OpenProject::addSpring(int masspoint1, int masspoint2, float initialLength)
@@ -476,58 +428,54 @@ void OpenProject::addSpring(int masspoint1, int masspoint2, float initialLength)
 	m_springs.push_back(newSpring);
 }
 
-int OpenProject::getNumberOfMassPoints()
+void OpenProject::addRigidBody(Vec3 position, Vec3 size, int mass, bool isFixed)
 {
-	return m_spheres.size();
-}
+	RigidBody* rb = new RigidBody;
 
-int OpenProject::getNumberOfSprings()
-{
-	return m_springs.size();
-}
+	rb->isFixed = isFixed;
+	rb->Mass = mass;
+	rb->Position = position;
+	rb->Size = size;
+	rb->Momentum = Vec3(0, 0, 0);
 
-Vec3 OpenProject::getPositionOfMassPoint(int index)
-{
-	return m_spheres[index]->Position;
-}
+	Mat4 rotMat;
+	rotMat.initRotationX(0);
+	rb->Orientation = Quat(rotMat);
 
-Vec3 OpenProject::getVelocityOfMassPoint(int index)
-{
-	return m_spheres[index]->Velocity;
-}
-
-void OpenProject::applyExternalForce(Vec3 force)
-{
-	for each(MassPoint* mp in m_spheres)
+	//Calculate initial Inertia Matrix for a cuboid
+	Mat4 inertia;
+	double matValues[16];
+	for (int i = 0; i < 15; ++i)
 	{
-		mp->Force += force;
+		matValues[i] = 0;
 	}
+	matValues[15] = 1;
+	matValues[0] = ((double)mass / 12) * (pow(size.y, 2) + pow(size.z, 2));
+	matValues[5] = ((double)mass / 12) * (pow(size.x, 2) + pow(size.z, 2));
+	matValues[10] = ((double)mass / 12) * (pow(size.x, 2) + pow(size.y, 2));
+
+	inertia.initFromArray(matValues);
+	rb->InvInertiaRaw = inertia.inverse();
+
+	m_rigidBodies.push_back(rb);
 }
 
-void OpenProject::drawSimpleSetup()
+void OpenProject::applyForceOnBody(int i, Vec3 loc, Vec3 force)
 {
-	Vec3 mpScale = Vec3(0.01f, 0.01f, 0.01f);
-	Vec3 springColor = Vec3(0, 1, 0);
+	m_rigidBodies[i]->Force += force;
 
-	//Setup Lighting
-	DUC->setUpLighting(Vec3(), 0.4*Vec3(1, 1, 1), 100, 0.6*Vec3(0.97, 0.86, 1));
-
-	//Draw MassPoints
-	for each(MassPoint* mp in m_spheres)
-	{
-		DUC->drawSphere(mp->Position, mpScale);
-	}
-
-	//Draw Springs
-	DUC->beginLine();
-	for each(Spring* sp in m_springs)
-	{
-		DUC->drawLine(m_spheres[sp->masspoint1]->Position, springColor, m_spheres[sp->masspoint2]->Position, springColor);
-	}
-	DUC->endLine();
+	Vec3 relPos = loc - m_rigidBodies[i]->Position;
+	m_rigidBodies[i]->Torque += cross(relPos, force);
 }
 
-void OpenProject::drawComplexSetup()
+void OpenProject::applyForceOnBodyLocal(int i, Vec3 loc, Vec3 force)
+{
+	m_rigidBodies[i]->Force += force;
+
+	m_rigidBodies[i]->Torque += cross(loc, force);
+}
+
+void OpenProject::drawProject()
 {
 	Vec3 mpScale = Vec3(0.01);
 
@@ -535,17 +483,20 @@ void OpenProject::drawComplexSetup()
 	DUC->setUpLighting(Vec3(), 0.4*Vec3(1, 1, 1), 100, 0.6*Vec3(0.97, 0.86, 1));
 
 	//Draw MassPoints
-	for each(MassPoint* mp in m_spheres)
+	/*for each(MassPoint* mp in m_masspoints)
 	{
 		DUC->drawSphere(mp->Position, mpScale);
-	}
+	}*/
 
 	//Draw Springs
 	DUC->beginLine();
 	for each(Spring* sp in m_springs)
 	{
 		//Make Spring Color dependent on current spring Length
-		Vec3 distance = m_spheres[sp->masspoint1]->Position - m_spheres[sp->masspoint2]->Position;
+		Vec3 pos1 = worldPos(m_masspoints[sp->masspoint1]->rigidBody, m_masspoints[sp->masspoint1]->Position);
+		Vec3 pos2 = worldPos(m_masspoints[sp->masspoint2]->rigidBody, m_masspoints[sp->masspoint2]->Position);
+
+		Vec3 distance = pos1 - pos2;
 		float length = sqrt(pow(distance.x, 2) + pow(distance.y, 2) + pow(distance.z, 2));
 
 		float greenAmount;
@@ -559,9 +510,23 @@ void OpenProject::drawComplexSetup()
 		}
 		Vec3 springColor = Vec3(1 - greenAmount, greenAmount, 0);
 
-		DUC->drawLine(m_spheres[sp->masspoint1]->Position, springColor, m_spheres[sp->masspoint2]->Position, springColor);
+		DUC->drawLine(pos1, springColor, pos2, springColor);
 	}
 	DUC->endLine();
+
+
+	for each(RigidBody* rb in m_rigidBodies)
+	{
+		Mat4 scaleMat;
+		Mat4 rotMat;
+		Mat4 translatMat;
+
+		scaleMat.initScaling(rb->Size.x, rb->Size.y, rb->Size.z);
+		rotMat = rb->Orientation.getRotMat();
+		translatMat.initTranslation(rb->Position.x, rb->Position.y, rb->Position.z);
+
+		DUC->drawRigidBody(scaleMat * rotMat * translatMat);
+	}
 }
 
 void OpenProject::updateElapsedTime()
