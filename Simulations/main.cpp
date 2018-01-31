@@ -23,9 +23,9 @@ using namespace GamePhysics;
 //#define ADAPTIVESTEP
 
 //#define TEMPLATE_DEMO
-//#define MASS_SPRING_SYSTEM
+#define OPEN_PROJECT
 //#define RIGID_BODY_SYSTEM
-#define SPHERE_SYSTEM
+//#define SPHERE_SYSTEM
 
 #ifdef TEMPLATE_DEMO
 #include "TemplateSimulator.h"
@@ -38,6 +38,9 @@ using namespace GamePhysics;
 #endif
 #ifdef SPHERE_SYSTEM
 #include "SphereSystemSimulator.h"
+#endif
+#ifdef OPEN_PROJECT
+#include "OpenProject.h"
 #endif
 
 DrawingUtilitiesClass * g_pDUC;
@@ -408,6 +411,11 @@ int main(int argc, char* argv[])
 #ifdef SPHERE_SYSTEM
 	g_pSimulator= new SphereSystemSimulator();
 #endif
+
+#ifdef OPEN_PROJECT
+	g_pSimulator = new OpenProject();
+#endif
+
 	g_pSimulator->reset();
 
     // Init DXUT and create device
